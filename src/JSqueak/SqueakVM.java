@@ -210,8 +210,8 @@ public class SqueakVM
         else
         {
             //otherwise home==ctxt
-            if (! primHandler.isA(meth,Squeak.splOb_ClassCompiledMethod))
-                meth= meth; // <-- break here
+            // if (! primHandler.isA(meth,Squeak.splOb_ClassCompiledMethod))
+            //    meth= meth; // <-- break here
             homeContext= (SqueakObject) ctxt; 
         }
         receiver= homeContext.getPointer(Squeak.Context_receiver);
@@ -1068,7 +1068,7 @@ public class SqueakVM
             // Recycle large contexts
             if (ctxt.pointersSize() != (Squeak.Context_tempFrameStart+Squeak.Context_largeFrameSize))
             {
-                freeContexts=freeContexts;
+                // freeContexts=freeContexts;
                 return;  //  <-- break here
             }
             ctxt.setPointer(0,freeLargeContexts);
@@ -1188,7 +1188,7 @@ public class SqueakVM
         {
             System.err.println("******Stack depth over 100******");
             dumpStack();
-            byteCount= byteCount;  // <-- break here
+            // byteCount= byteCount;  // <-- break here
         }
         //        if (mod(byteCount,1000) != 0) return;
         if (byteCount != -1) 
@@ -1197,8 +1197,8 @@ public class SqueakVM
         System.err.println(byteCount + " rcvr= " + printString(receiver));
         System.err.println("depth= " + stackDepth() + "; top= " + printString(top()));
         System.err.println("pc= " + pc + "; sp= " + sp + "; nextByte= " + (((byte[])method.bits)[pc+1] & 0xff));
-        if (byteCount==1764)
-            byteCount= byteCount;  // <-- break here 
+        // if (byteCount==1764)
+        //    byteCount= byteCount;  // <-- break here 
     }
 
     int stackDepth() 
