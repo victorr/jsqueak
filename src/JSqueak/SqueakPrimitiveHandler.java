@@ -192,7 +192,7 @@ class SqueakPrimitiveHandler
         int arg= stackInteger(0);
         if (!success) 
             return vm.nilObj;
-        return pos32BitIntFor(vm.safeShift(rcvr,arg)); 
+        return pos32BitIntFor(SqueakVM.safeShift(rcvr,arg)); 
     }
     
     int doQuo(int rcvr, int arg) 
@@ -231,10 +231,10 @@ class SqueakPrimitiveHandler
             case 6: return pop2andDoBoolIfOK(stackInteger(1)>=stackInteger(0));  // Integer.geq
             case 7: return pop2andDoBoolIfOK(stackInteger(1)==stackInteger(0));  // Integer.equal
             case 8: return pop2andDoBoolIfOK(stackInteger(1)!=stackInteger(0));  // Integer.notequal
-            case 9: return popNandPushIntIfOK(2,vm.safeMultiply(stackInteger(1),stackInteger(0)));  // Integer.multiply *
-            case 10: return popNandPushIntIfOK(2,vm.quickDivide(stackInteger(1),stackInteger(0)));  // Integer.divide /  (fails unless exact exact)
+            case 9: return popNandPushIntIfOK(2,SqueakVM.safeMultiply(stackInteger(1),stackInteger(0)));  // Integer.multiply *
+            case 10: return popNandPushIntIfOK(2,SqueakVM.quickDivide(stackInteger(1),stackInteger(0)));  // Integer.divide /  (fails unless exact exact)
             case 11: return false; //popNandPushIntIfOK(2,doMod(stackInteger(1),stackInteger(0)));  // Integer.mod \\
-            case 12: return popNandPushIntIfOK(2,vm.div(stackInteger(1),stackInteger(0)));  // Integer.div //
+            case 12: return popNandPushIntIfOK(2,SqueakVM.div(stackInteger(1),stackInteger(0)));  // Integer.div //
             case 13: return popNandPushIntIfOK(2,doQuo(stackInteger(1),stackInteger(0)));  // Integer.quo
             case 14: return popNandPushIfOK(2,primitiveBitAnd());  // SmallInt.bitAnd
             case 15: return popNandPushIfOK(2,primitiveBitOr());  // SmallInt.bitOr
@@ -1118,7 +1118,7 @@ class SqueakPrimitiveHandler
         //Note that the millisecond clock wraps around periodically.
         //The range is limited to SmallInteger maxVal / 2 to allow
         //delays of up to that length without overflowing a SmallInteger."
-        return SqueakVM.smallFromInt(((int) (System.currentTimeMillis() & (long)(vm.maxSmallInt>>1)))); 
+        return SqueakVM.smallFromInt(((int) (System.currentTimeMillis() & (long)(SqueakVM.maxSmallInt>>1)))); 
     }
     
     boolean beDisplay(SqueakObject displayObj) 

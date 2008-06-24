@@ -494,7 +494,7 @@ public class BitBlt
     
     int halftoneAt(int index) 
     {
-        return halftoneBits[vm.mod(index,halftoneHeight)]; 
+        return halftoneBits[SqueakVM.mod(index,halftoneHeight)]; 
     }
     
     int srcLongAt(int index)
