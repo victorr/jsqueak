@@ -286,12 +286,12 @@ class SqueakPrimitiveHandler
             case 101: return beCursor(argCount); // Cursor.beCursor
             case 102: return beDisplay((SqueakObject)vm.top()); // DisplayScreen.beDisplay
             case 105: return popNandPushIfOK(5,primitiveStringReplace()); // string and array replace
-            case 106: return popNandPushIfOK(1,makePointWithXandY(vm.smallFromInt(640),vm.smallFromInt(480))); // actualScreenSize
+            case 106: return popNandPushIfOK(1,makePointWithXandY(SqueakVM.smallFromInt(640),SqueakVM.smallFromInt(480))); // actualScreenSize
             case 107: return popNandPushIfOK(1,primitiveMouseButtons()); // Sensor mouseButtons
             case 108: return popNandPushIfOK(1,primitiveKbdNext()); // Sensor kbdNext
             case 109: return popNandPushIfOK(1,primitiveKbdPeek()); // Sensor kbdPeek
             case 110: return popNandPushIfOK(2,(vm.stackValue(1) == vm.stackValue(0))? vm.trueObj : vm.falseObj); // ==
-            case 112: return popNandPushIfOK(1,vm.smallFromInt(image.spaceLeft())); // bytesLeft
+            case 112: return popNandPushIfOK(1,SqueakVM.smallFromInt(image.spaceLeft())); // bytesLeft
             case 113: {System.exit(0); return true; }
             case 116: return vm.flushMethodCacheForMethod((SqueakObject)vm.top());
             case 119: return vm.flushMethodCacheForSelector((SqueakObject)vm.top());
@@ -301,8 +301,8 @@ class SqueakPrimitiveHandler
             case 125: return popNandPushIfOK(2,setLowSpaceThreshold());
             case 128: return popNandPushIfOK(2,primitiveArrayBecome(true));
             case 129: return popNandPushIfOK(1,image.specialObjectsArray);
-            case 130: return popNandPushIfOK(1,vm.smallFromInt(image.fullGC())); // GC
-            case 131: return popNandPushIfOK(1,vm.smallFromInt(image.partialGC())); // GCmost
+            case 130: return popNandPushIfOK(1,SqueakVM.smallFromInt(image.fullGC())); // GC
+            case 131: return popNandPushIfOK(1,SqueakVM.smallFromInt(image.partialGC())); // GCmost
             case 134: return popNandPushIfOK(2,registerSemaphore(Squeak.splOb_TheInterruptSemaphore));
             case 135: return popNandPushIfOK(1,millisecondClockValue());
             case 136: return popNandPushIfOK(3,primitiveSignalAtMilliseconds()); //Delay signal:atMs:());
@@ -334,7 +334,7 @@ class SqueakPrimitiveHandler
     
     boolean popNandPushIntIfOK(int nToPop, int returnValue) 
     {
-        return popNandPushIfOK(nToPop, vm.smallFromInt(returnValue)); 
+        return popNandPushIfOK(nToPop, SqueakVM.smallFromInt(returnValue)); 
     }
     
     boolean popNandPushFloatIfOK(int nToPop, double returnValue) 
@@ -418,7 +418,7 @@ class SqueakPrimitiveHandler
         // Return the 32-bit quantity as a positive 32-bit integer
         if (pos32Val >= 0) 
         {
-            Object smallInt= vm.smallFromInt(pos32Val);
+            Object smallInt= SqueakVM.smallFromInt(pos32Val);
             if (smallInt != null) 
                 return smallInt; 
         }
@@ -454,7 +454,7 @@ class SqueakPrimitiveHandler
         double floatVal= stackFloat(0);
         if ( !(-1073741824.0 <= floatVal) && (floatVal <= 1073741823.0)) 
             return false;
-        vm.popNandPush(1,vm.smallFromInt((new Double(floatVal)).intValue())); //**must be a better way
+        vm.popNandPush(1,SqueakVM.smallFromInt((new Double(floatVal)).intValue())); //**must be a better way
         return true; 
     }
             
@@ -579,8 +579,8 @@ class SqueakPrimitiveHandler
             int value= (((byte[])array.bits)[index-1]) & 0xFF;
             if (info.convertChars) 
                 return charFromInt(value);
-            else 
-                return vm.smallFromInt(value); 
+			else
+				return SqueakVM.smallFromInt(value); 
         }
         // methods (format>=12) must simulate Squeak's method indexing
         int offset= array.pointersSize()*4;
@@ -589,7 +589,7 @@ class SqueakPrimitiveHandler
             success= false; 
             return array; 
         } //reading lits as bytes
-        return vm.smallFromInt((((byte[])array.bits)[index-1-offset]) & 0xFF); 
+        return SqueakVM.smallFromInt((((byte[])array.bits)[index-1-offset]) & 0xFF); 
     }
     
     SqueakObject charFromInt(int ascii) 
@@ -843,7 +843,7 @@ class SqueakPrimitiveHandler
         Integer initialPC= vm.encodeSqueakPC(vm.pc+2,vm.method); //*** check this...
         newBlock.setPointer(Squeak.BlockContext_initialIP,initialPC);
         newBlock.setPointer(Squeak.Context_instructionPointer,initialPC);// claim not needed; value will set it
-        newBlock.setPointer(Squeak.Context_stackPointer,vm.smallFromInt(0));
+        newBlock.setPointer(Squeak.Context_stackPointer,SqueakVM.smallFromInt(0));
         newBlock.setPointer(Squeak.BlockContext_argumentCount,sqArgCount);
         newBlock.setPointer(Squeak.BlockContext_home,homeCtxt);
         newBlock.setPointer(Squeak.Context_sender,vm.nilObj);
@@ -942,7 +942,7 @@ class SqueakPrimitiveHandler
         int excessSignals= sema.getPointerI(Squeak.Semaphore_excessSignals).intValue();
         if (excessSignals > 0)
         {
-            sema.setPointer(Squeak.Semaphore_excessSignals,vm.smallFromInt(excessSignals-1));
+            sema.setPointer(Squeak.Semaphore_excessSignals,SqueakVM.smallFromInt(excessSignals-1));
         }
         else 
         {
@@ -968,7 +968,7 @@ class SqueakPrimitiveHandler
         {
             //no process is waiting on this semaphore"
             int excessSignals= sema.getPointerI(Squeak.Semaphore_excessSignals).intValue();
-            sema.setPointer(Squeak.Semaphore_excessSignals,vm.smallFromInt(excessSignals+1)); 
+            sema.setPointer(Squeak.Semaphore_excessSignals,SqueakVM.smallFromInt(excessSignals+1)); 
         }
         else 
         {
@@ -1118,7 +1118,7 @@ class SqueakPrimitiveHandler
         //Note that the millisecond clock wraps around periodically.
         //The range is limited to SmallInteger maxVal / 2 to allow
         //delays of up to that length without overflowing a SmallInteger."
-        return vm.smallFromInt((int) (System.currentTimeMillis() & (long)(vm.maxSmallInt>>1))); 
+        return SqueakVM.smallFromInt(((int) (System.currentTimeMillis() & (long)(vm.maxSmallInt>>1)))); 
     }
     
     boolean beDisplay(SqueakObject displayObj) 
@@ -1243,7 +1243,7 @@ class SqueakPrimitiveHandler
             theDisplay.redisplay(false, affectedArea); 
         }
         if (bitbltTable.combinationRule == 22 || bitbltTable.combinationRule == 32)
-            vm.popNandPush(2,vm.smallFromInt(bitbltTable.bitCount));
+            vm.popNandPush(2,SqueakVM.smallFromInt(bitbltTable.bitCount));
         return true; 
     }
     
@@ -1277,19 +1277,19 @@ class SqueakPrimitiveHandler
         SqueakObject pointClass= (SqueakObject)vm.specialObjects[Squeak.splOb_ClassPoint];
         SqueakObject newPoint= vm.instantiateClass(pointClass,0);
         Point lastMouse= theDisplay.getLastMousePoint();
-        newPoint.setPointer(Squeak.Point_x,vm.smallFromInt(lastMouse.x));
-        newPoint.setPointer(Squeak.Point_y,vm.smallFromInt(lastMouse.y));
+        newPoint.setPointer(Squeak.Point_x,SqueakVM.smallFromInt(lastMouse.x));
+        newPoint.setPointer(Squeak.Point_y,SqueakVM.smallFromInt(lastMouse.y));
         return newPoint; 
     }
     
     Integer primitiveMouseButtons() 
     {
-        return vm.smallFromInt(theDisplay.getLastMouseButtonStatus()); 
+        return SqueakVM.smallFromInt(theDisplay.getLastMouseButtonStatus()); 
     }
     
     Object primitiveKbdNext() 
     {
-        return vm.smallFromInt(theDisplay.keyboardNext()); 
+        return SqueakVM.smallFromInt(theDisplay.keyboardNext()); 
     }
     
     Object primitiveKbdPeek() 
@@ -1297,7 +1297,7 @@ class SqueakPrimitiveHandler
         if (theDisplay==null) 
             return (Object)vm.nilObj;
         int peeked= theDisplay.keyboardPeek();
-        return peeked==0? (Object)vm.nilObj : vm.smallFromInt(peeked); 
+        return peeked==0? (Object)vm.nilObj : SqueakVM.smallFromInt(peeked); 
     }
     
     SqueakObject primitiveArrayBecome(boolean doBothWays) 
@@ -1324,8 +1324,8 @@ class SqueakPrimitiveHandler
     Object primitiveNextObject(SqueakObject priorObject) 
     {
         SqueakObject nextObject= image.nextInstance(image.otIndexOfObject(priorObject)+1, null);
-        if (nextObject==vm.nilObj) 
-            return vm.smallFromInt(0);
+        if (nextObject==vm.nilObj)
+			return SqueakVM.smallFromInt(0);
         return nextObject; 
     }
     
