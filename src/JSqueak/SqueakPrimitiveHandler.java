@@ -154,7 +154,7 @@ class SqueakPrimitiveHandler
     boolean primitiveEq(Object arg1, Object arg2) 
     {
         // == must work for uninterned small ints
-        if (vm.isSmallInt(arg1) && vm.isSmallInt(arg2))
+        if (SqueakVM.isSmallInt(arg1) && SqueakVM.isSmallInt(arg2))
             return ((Integer)arg1).intValue() == ((Integer)arg2).intValue();
         return arg1==arg2; 
     }
@@ -351,7 +351,7 @@ class SqueakPrimitiveHandler
     
     int checkSmallInt(Object maybeSmall)  // returns an int and sets success
     {
-        if (vm.isSmallInt(maybeSmall))
+        if (SqueakVM.isSmallInt(maybeSmall))
             return vm.intFromSmall((Integer)maybeSmall);
         success= false; 
         return 0; 
@@ -382,7 +382,7 @@ class SqueakPrimitiveHandler
     
     SqueakObject checkNonSmallInt(Object maybeSmall)  // returns a SqObj and sets success 
     {
-        if (vm.isSmallInt(maybeSmall))
+        if (SqueakVM.isSmallInt(maybeSmall))
         {
             success= false; 
             return vm.nilObj; 
@@ -393,7 +393,7 @@ class SqueakPrimitiveHandler
     int stackPos32BitValue(int nDeep) 
     {
         Object stackVal= vm.stackValue(nDeep);
-        if (vm.isSmallInt(stackVal)) 
+        if (SqueakVM.isSmallInt(stackVal)) 
         {
             int value= vm.intFromSmall((Integer) stackVal);
             if (value >= 0)
@@ -653,7 +653,7 @@ class SqueakPrimitiveHandler
         if (info.convertChars) 
         {
             // put a character...
-            if (vm.isSmallInt(objToPut))
+            if (SqueakVM.isSmallInt(objToPut))
             {
                 success= false; 
                 return objToPut; 
@@ -665,7 +665,7 @@ class SqueakPrimitiveHandler
                 return objToPut; 
             }
             Object asciiToPut= sqObjToPut.getPointer(0);
-            if (!(vm.isSmallInt(asciiToPut))) 
+            if (!(SqueakVM.isSmallInt(asciiToPut))) 
             {
                 success= false;
                 return objToPut; 
@@ -675,7 +675,7 @@ class SqueakPrimitiveHandler
         else 
         {
             // put a byte...
-            if (!(vm.isSmallInt(objToPut))) 
+            if (!(SqueakVM.isSmallInt(objToPut))) 
             {
                 success= false; 
                 return objToPut; 
@@ -706,7 +706,7 @@ class SqueakPrimitiveHandler
     
     int indexableSize(Object obj) 
     {
-        if (vm.isSmallInt(obj)) 
+        if (SqueakVM.isSmallInt(obj)) 
             return -1; // -1 means not indexable
         SqueakObject sqObj= (SqueakObject) obj;
         short fmt= sqObj.format;
@@ -799,7 +799,7 @@ class SqueakPrimitiveHandler
         if (streamBody == null || streamBody.length < (Squeak.Stream_limit+1))
             return false;
         Object array= streamBody[Squeak.Stream_array];
-        if (vm.isSmallInt(array)) 
+        if (SqueakVM.isSmallInt(array)) 
             return false;
         int index= checkSmallInt(streamBody[Squeak.Stream_position]);
         int limit= checkSmallInt(streamBody[Squeak.Stream_limit]);
@@ -823,17 +823,17 @@ class SqueakPrimitiveHandler
     SqueakObject primitiveBlockCopy() 
     {
         Object rcvr= vm.stackValue(1);
-        if (vm.isSmallInt(rcvr))
+        if (SqueakVM.isSmallInt(rcvr))
             success= false;
         Object sqArgCount= vm.top();
-        if (!(vm.isSmallInt(sqArgCount))) 
+        if (!(SqueakVM.isSmallInt(sqArgCount))) 
             success= false;
         SqueakObject homeCtxt= (SqueakObject) rcvr;
         if (!vm.isContext(homeCtxt)) 
             success= false;
         if (!success) 
             return vm.nilObj;
-        if (vm.isSmallInt(homeCtxt.getPointer(Squeak.Context_method)))
+        if (SqueakVM.isSmallInt(homeCtxt.getPointer(Squeak.Context_method)))
         {
             // ctxt is itself a block; get the context for its enclosing method
             homeCtxt= homeCtxt.getPointerNI(Squeak.BlockContext_home);
@@ -857,7 +857,7 @@ class SqueakPrimitiveHandler
             return false;
         SqueakObject block= (SqueakObject) rcvr;
         Object blockArgCount= block.getPointer(Squeak.BlockContext_argumentCount);
-        if (!vm.isSmallInt(blockArgCount)) 
+        if (!SqueakVM.isSmallInt(blockArgCount)) 
             return false;
         if ((((Integer)blockArgCount).intValue()!= argCount)) 
             return false;
@@ -876,7 +876,7 @@ class SqueakPrimitiveHandler
     Object primitiveHash() 
     {
         Object rcvr= vm.top();
-        if (vm.isSmallInt(rcvr)) 
+        if (SqueakVM.isSmallInt(rcvr)) 
         {
             success= false; 
             return vm.nilObj; 
