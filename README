@@ -5,3 +5,11 @@ implementation of the Squeak Smalltalk virtual machine.
 
 The official site, where you can download official sources
 is located at http://research.sun.com/projects/JSqueak.
+
+JSqueak was released under the MIT license (see the announcement[1]).
+
+Any original code released on this repository is also released under
+the MIT license.
+
+
+[1] http://www.nabble.com/-squeak-dev--JSqueak%2C-the-erstwhile-Potato%2C-is-out%21-p18045925.html
