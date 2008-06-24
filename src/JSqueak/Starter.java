@@ -26,42 +26,44 @@ package JSqueak;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.FileInputStream;
 
-//import joe.framework.Simulation;
-//import joe.framework.Executable;
-import JSqueak.*;
-
-public class Starter {
-	
-    public static SqueakImage locateStartableImage(String args[]) throws IOException {
-		String name;
-		if (args.length == 0) {
-			name= "mini.image.gz";
-                        //File saved= new File(name);
-			//if (saved.exists()) return new SqueakImage(saved);
-			// and only if no image name was given
-                        InputStream ims= Starter.class.getResourceAsStream("mini.image.gz");
-                        System.out.println("BINGO: " + ims);
-                        if (ims != null) return new SqueakImage(ims);
-                } else {
-			File saved= new File(name= args[0]);
-			if (saved.exists())
-				return new SqueakImage(saved);
-		}
-		System.err.println("Image " + name + " not found.");
-		return null;
-	}
-
-	/**
-	 * @param args first arg may specify image file name
-	 */
-    public static void main(String[] args) throws IOException, NullPointerException, java.lang.ArrayIndexOutOfBoundsException {
+public class Starter 
+{
+    public static SqueakImage locateStartableImage(String args[]) throws IOException 
+    {
+        String name;
+        if (args.length == 0) 
+        {
+            name= "mini.image.gz";
+            //File saved= new File(name);
+            //if (saved.exists()) return new SqueakImage(saved);
+            // and only if no image name was given
+            InputStream ims= Starter.class.getResourceAsStream("mini.image.gz");
+            System.out.println("BINGO: " + ims);
+            if (ims != null) 
+                return new SqueakImage(ims); 
+        }
+        else 
+        {
+            File saved= new File(name= args[0]);
+            if (saved.exists())
+                return new SqueakImage(saved); 
+        }
+        System.err.println("Image " + name + " not found.");
+        return null; 
+    }
+    
+    /**
+     * @param args first arg may specify image file name
+     */
+    public static void main(String[] args) throws IOException, NullPointerException, java.lang.ArrayIndexOutOfBoundsException 
+    {
         SqueakVM.initSmallIntegerCache();
         SqueakImage img= locateStartableImage(args);
         SqueakVM vm= new SqueakVM(img);
-        vm.run();
+        vm.run(); 
     }
+
         //Simulation sim= new Simulation(vm);
             //sim.run();
             //if (sim.getState() == Executable.CANCELLED) {
@@ -72,4 +74,4 @@ public class Starter {
         //if (vm != null) {
             //vm.shutdown();
         //}
-    }
+}

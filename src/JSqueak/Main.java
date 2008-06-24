@@ -30,18 +30,23 @@ THE SOFTWARE.
 */
 
 package JSqueak;
-    import java.lang.Exception;
 
-public class Main {
-    public Main() { }
-    
-    public static void main(String[] args) {
-    /*  @param args the command line arguments */
-        try {Starter.main(new String[0]);}
-            catch (Exception ex ) {
-                System.err.println(ex);
-                }
-	}
-
+public class Main 
+{
+    public Main() 
+    {
+        // nothing to do
     }
     
+    public static void main(String[] args) 
+    {
+        try 
+        {
+            Starter.main(new String[0]);
+        }
+        catch (Exception ex ) 
+        {
+            System.err.println(ex);
+        }
+    }
+}
