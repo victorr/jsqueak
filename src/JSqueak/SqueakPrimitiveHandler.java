@@ -352,7 +352,7 @@ class SqueakPrimitiveHandler
     int checkSmallInt(Object maybeSmall)  // returns an int and sets success
     {
         if (SqueakVM.isSmallInt(maybeSmall))
-            return vm.intFromSmall((Integer)maybeSmall);
+			return SqueakVM.intFromSmall(((Integer)maybeSmall));
         success= false; 
         return 0; 
     }
@@ -395,7 +395,7 @@ class SqueakPrimitiveHandler
         Object stackVal= vm.stackValue(nDeep);
         if (SqueakVM.isSmallInt(stackVal)) 
         {
-            int value= vm.intFromSmall((Integer) stackVal);
+            int value= SqueakVM.intFromSmall(((Integer) stackVal));
             if (value >= 0)
                 return value;
             success= false; 
@@ -670,7 +670,7 @@ class SqueakPrimitiveHandler
                 success= false;
                 return objToPut; 
             }
-            intToPut= vm.intFromSmall((Integer)asciiToPut); 
+            intToPut= SqueakVM.intFromSmall(((Integer)asciiToPut)); 
         }
         else 
         {
@@ -680,7 +680,7 @@ class SqueakPrimitiveHandler
                 success= false; 
                 return objToPut; 
             }
-            intToPut= vm.intFromSmall((Integer)objToPut); 
+            intToPut= SqueakVM.intFromSmall(((Integer)objToPut)); 
         }
         if (intToPut<0 || intToPut>255)
         {

@@ -688,8 +688,8 @@ public class SqueakVM
     int checkSmallInt(Object maybeSmall) 
     {
         // returns an int and sets success
-        if (isSmallInt(maybeSmall)) 
-            return intFromSmall((Integer)maybeSmall);
+        if (isSmallInt(maybeSmall))
+			return intFromSmall(((Integer)maybeSmall));
         success= false; return 1; 
     }
     
@@ -1271,9 +1271,9 @@ public class SqueakVM
                 if (!isSmallInt(formPointers[i])) 
                     return false;
             Object bitsObject = formPointers[0];
-            width = intFromSmall((Integer)formPointers[1]);
-            height = intFromSmall((Integer)formPointers[2]);
-            depth = intFromSmall((Integer)formPointers[3]);
+            width = intFromSmall(((Integer)formPointers[1]));
+            height = intFromSmall(((Integer)formPointers[2]));
+            depth = intFromSmall(((Integer)formPointers[3]));
             if ((width < 0) || (height < 0)) 
                 return false;
             if (bitsObject==nilObj || isSmallInt(bitsObject)) 
