@@ -44,9 +44,6 @@ import java.awt.Robot;
 import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.awt.event.KeyAdapter;
-import java.awt.event.KeyEvent;
-import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
 import java.awt.image.DataBuffer;
@@ -58,8 +55,6 @@ import java.awt.image.SampleModel;
 import java.awt.image.SinglePixelPackedSampleModel;
 import java.awt.image.WritableRaster;
 import java.lang.reflect.InvocationTargetException;
-import java.util.ArrayList;
-import java.util.List;
 
 import javax.swing.Icon;
 import javax.swing.ImageIcon;
@@ -69,7 +64,6 @@ import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
 import javax.swing.WindowConstants;
-import javax.swing.event.MouseInputAdapter;
 
 public class Screen 
 {
@@ -95,89 +89,6 @@ public class Screen
     
     private final static ColorModel kBlackAndWhiteModel =
         new IndexColorModel(1, 2, kComponents, kComponents, kComponents);
-    
-    private class MouseStatus extends MouseInputAdapter 
-    {
-        int fX, fY;
-        int fButtons;
-        
-        private final static int RED = 4;
-        private final static int YELLOW = 2;
-        private final static int BLUE = 1;
-        
-        private int mapButton(MouseEvent evt) 
-        {
-            switch (evt.getButton()) 
-            {
-                case MouseEvent.BUTTON1:
-                    if (evt.isControlDown()) 
-                        return YELLOW;
-                    if (evt.isAltDown()) 
-                        return BLUE;
-                    return RED;
-                case MouseEvent.BUTTON2:    return BLUE;        // middle (frame menu)
-                case MouseEvent.BUTTON3:    return YELLOW;  // right (pane menu)
-                case MouseEvent.NOBUTTON:   return 0;
-            }
-            throw new RuntimeException("unknown mouse button in event"); 
-        }
-        
-        public void mouseMoved(MouseEvent evt) 
-        {
-            fX = evt.getX();
-            fY = evt.getY();
-            wakeVM(); 
-        }
-        
-        public void mouseDragged(MouseEvent evt) 
-        {
-            fX= evt.getX();
-            fY= evt.getY();
-            wakeVM(); 
-        }
-        
-        public void mousePressed(MouseEvent evt) 
-        {
-            fButtons |= mapButton(evt);
-            wakeVM(); 
-        }
-        
-        public void mouseReleased(MouseEvent evt) 
-        {
-            fButtons &= ~mapButton(evt);
-            wakeVM();
-        }
-    }
-    
-    private class KeyboardQueue extends KeyAdapter 
-    {
-        private List fCharQueue= new ArrayList();
-        
-        public void keyTyped(KeyEvent evt) 
-        {
-            if (fCharQueue.size() < 8) 
-            {
-                // typeahead limit
-                fCharQueue.add(new Character(evt.getKeyChar())); 
-            }
-            wakeVM(); 
-        }
-        
-        private final int keycode(Character c) 
-        {
-            return c.charValue() & 255; 
-        }
-        
-        int peek() 
-        {
-            return fCharQueue.isEmpty()? 0 : keycode((Character)fCharQueue.get(0)); 
-        }
-        
-        int next() 
-        {
-            return keycode((Character)fCharQueue.remove(0)); 
-        }
-    }
     
     public Screen(String title, int width, int height, int depth, Object vmSema) 
     {
@@ -208,12 +119,12 @@ public class Screen
         Dimension screen = Toolkit.getDefaultToolkit().getScreenSize();
         fFrame.setLocation((screen.width - fExtent.width)/2, (screen.height - fExtent.height)/2);   // center
         
-        fMouseStatus= new MouseStatus();
+        fMouseStatus= new MouseStatus( (SqueakVM) fVMSemaphore );
         fDisplay.addMouseMotionListener( fMouseStatus );
         fDisplay.addMouseListener(fMouseStatus);
         
         fDisplay.setFocusable(true);    // enable keyboard input
-        fKeyboardQueue= new KeyboardQueue();
+        fKeyboardQueue= new KeyboardQueue( (SqueakVM) fVMSemaphore );
         fDisplay.addKeyListener( fKeyboardQueue );
         
         fDisplay.setOpaque(true);
@@ -324,22 +235,6 @@ public class Screen
     // extension point, default is ignorance
     protected void logRedisplayException(Exception e) {}
     
-    private void wakeVM() 
-    {
-        ((SqueakVM)fVMSemaphore).screenEvent = true;
-        synchronized(fVMSemaphore)
-        {
-            fVMSemaphore.notify(); 
-        }
-        try 
-        {
-            Thread.sleep(0,200); 
-        } 
-        catch(InterruptedException e) {}
-        
-        ((SqueakVM)fVMSemaphore).screenEvent = false; 
-    }
-
     private final static int Squeak_CURSOR_WIDTH= 16;
     private final static int Squeak_CURSOR_HEIGHT= 16;
     

@@ -1293,4 +1293,20 @@ public class SqueakVM
             return true; 
         }
     }
+    
+    void wakeVM() 
+    {
+        screenEvent = true;
+        synchronized(this)
+        {
+            notify(); 
+        }
+        try 
+        {
+            Thread.sleep(0,200); 
+        } 
+        catch(InterruptedException e) {}
+        
+        screenEvent = false; 
+    }
 }
