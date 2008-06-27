@@ -322,7 +322,7 @@ public class Screen
     
     public int getLastMouseButtonStatus() 
     {
-        return ( fMouseStatus.fButtons & 7 );
+        return ( fMouseStatus.fButtons & 7 ) | fKeyboardQueue.modifierKeys();
     }
     
     public void setMousePoint(int x, int y) 
