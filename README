@@ -1,4 +1,4 @@
-JSqueak
+JSqueak -- Java implementation of the Squeak Smalltalk Virtual Machine
 
 This is an unofficial repository for JSqueak, a Java 
 implementation of the Squeak Smalltalk virtual machine.
@@ -11,5 +11,7 @@ JSqueak was released under the MIT license (see the announcement[1]).
 Any original code released on this repository is also released under
 the MIT license.
 
+This repository is maintained by Victor Rodriguez (victorr@gmail.com),
+contributions are most welcome!
 
 [1] http://www.nabble.com/-squeak-dev--JSqueak%2C-the-erstwhile-Potato%2C-is-out%21-p18045925.html
