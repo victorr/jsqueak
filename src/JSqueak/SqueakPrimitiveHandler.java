@@ -28,6 +28,8 @@ import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.io.File;
+import java.io.IOException;
 import java.util.Arrays;
 
 /**
@@ -350,6 +352,8 @@ class SqueakPrimitiveHandler
                          else 
                              primitiveCopyBits((SqueakObject)vm.stackValue(1),1);
                          break;
+                case 97: primitiveSnapshot();
+                         break;
                 case 100: return vm.primitivePerformInSuperclass((SqueakObject)vm.top()); // rcvr.perform:withArguments:InSuperclass
                 case 101: beCursor(argCount); // Cursor.beCursor
                           break;
@@ -372,7 +376,7 @@ class SqueakPrimitiveHandler
                 case 113: System.exit(0);
                 case 116: return vm.flushMethodCacheForMethod((SqueakObject)vm.top());
                 case 119: return vm.flushMethodCacheForSelector((SqueakObject)vm.top());
-                case 121: popNandPush(1,makeStString("Macintosh HD:Users:danielingalls:Recent Squeaks:Old 3.3:mini.image")); //imageName
+                case 121: popNandPush(1, primitiveImageFileName( argCount  ) );
                           break;
                 case 122: BWMask= ~BWMask;
                           break;
@@ -400,7 +404,7 @@ class SqueakPrimitiveHandler
                           break;
                 case 139: popNandPush(1,primitiveNextObject(stackNonInteger(0))); // Class.someInstance
                           break;
-                case 142: popNandPush(1,makeStString("Macintosh HD:Users:danielingalls:Recent Squeaks:Squeak VMs etc.:")); //vmPath
+                case 142: popNandPush(1, primitiveVmPath() );
                           break;
                 case 148: popNandPush(1,((SqueakObject)vm.top()).cloneIn(image)); //imageName
                           break;
@@ -418,6 +422,65 @@ class SqueakPrimitiveHandler
         {
             return false;
         }
+    }
+
+    /**
+     * snapshotPrimitive
+     *    "Primitive. Write the current state of the object memory on a file in the
+     *    same format as the Smalltalk-80 release. The file can later be resumed,
+     *    returning you to this exact state. Return normally after writing the file.
+     *    Essential. See Object documentation whatIsAPrimitive."
+     *    
+     *    <primitive: 97>
+     *     ^nil "indicates error writing image file"
+     */
+    private void primitiveSnapshot()
+    {
+        System.out.println( "Saving the image" );
+        try 
+        {
+            vm.image.save( new File( "/tmp/image.gz" ) );
+        }
+        catch ( IOException e ) 
+        {
+            e.printStackTrace();
+            throw PrimitiveFailed;
+        }
+    }
+    
+    /**
+     * Primitive 121
+     * "When called with a single string argument, record the string
+     * as the current image file name. When called with zero
+     * arguments, return a string containing the current image file
+     * name."
+     */
+    private Object primitiveImageFileName( int argCount ) 
+    {
+        if ( argCount == 0 )
+            return makeStString( vm.image.imageFile().getAbsolutePath() );
+        
+        if ( argCount == 1 )
+            new Exception( "Cannot set the image name yet, argument is '" + stackNonInteger( 0 ) + "'" ).printStackTrace();
+
+        throw PrimitiveFailed;
+    }
+
+    /**
+     * SystemDictionary>>vmPath.
+     * Primitive 142.
+     * 
+     * primVmPath
+     *   "Answer the path for the directory containing the Smalltalk virtual machine. 
+     *   Return the empty string if this primitive is not implemented."
+     *        "Smalltalk vmPath"
+     *
+     *   <primitive: 142>
+     *   ^ ''
+     */
+    private SqueakObject primitiveVmPath()
+    {
+        return makeStString( System.getProperty( "user.dir" ) );
     }
 
     private boolean pop2andDoBool(boolean bool) 

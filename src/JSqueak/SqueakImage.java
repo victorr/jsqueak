@@ -53,26 +53,30 @@ import java.util.zip.GZIPOutputStream;
 
 public class SqueakImage 
 {
-    SqueakVM vm;
-    WeakReference[] objectTable;
-    int otMaxUsed;
-    int otMaxOld;
-    SqueakObject specialObjectsArray;
-    int lastHash;
-    int lastOTindex;
+    private final String DEFAULT_IMAGE_NAME = "jsqueak.image";
     
-    void bindVM(SqueakVM theVM) 
-    {
-        vm = theVM; 
-    }
+    private SqueakVM vm;
+    private WeakReference[] objectTable;
+    private int otMaxUsed;
+    private int otMaxOld;
+    private int lastHash;
+    private int lastOTindex;
+    
+    private File imageFile;
+    
+    // FIXME: Access this through a method
+    SqueakObject specialObjectsArray;
     
     public SqueakImage(InputStream raw) throws IOException 
     {
+        imageFile = new File( System.getProperty( "user.dir" ),
+                              DEFAULT_IMAGE_NAME );
         loaded(raw); 
     }
     
-    public SqueakImage(File fn) throws IOException 
+    public SqueakImage( File fn ) throws IOException 
     {
+        imageFile = fn;
         loaded(fn); 
     }
     
@@ -83,9 +87,20 @@ public class SqueakImage
         DataOutputStream ser= new DataOutputStream(gz);
         writeImage(ser);
         ser.flush();
-        ser.close(); 
+        ser.close();
+        imageFile = fn;
     }
 
+    File imageFile()
+    {
+        return imageFile;
+    }
+    
+    void bindVM(SqueakVM theVM) 
+    {
+        vm = theVM; 
+    }
+    
     private void loaded(InputStream raw) throws IOException 
     {
         BufferedInputStream fp= new BufferedInputStream(raw);
@@ -277,13 +292,17 @@ public class SqueakImage
         return writePtr-1; 
     }
     
-    private void writeImage (DataOutput ser) {} // Later...
+    private void writeImage (DataOutput ser) throws IOException 
+    {
+        // Later...
+        throw new IOException( "Image saving is not implemented yet" );
+    } 
     
     private void readImage(DataInput in) throws IOException 
     {
         //System.err.println("-3.0" + Double.doubleToLongBits(-3.0d));
         System.out.println("Start reading at " + System.currentTimeMillis());
-        objectTable= new WeakReference[OTMinSize];
+        objectTable = new WeakReference[OTMinSize];
         otMaxUsed= -1;
         Hashtable oopMap= new Hashtable(30000);
         boolean doSwap= false;
