@@ -373,4 +373,24 @@ public class SqueakObject //Later make variants for common formats
     {
         return this.asString(); 
     }
+    
+    /**
+     * FIXME: what is the right way to achieve this?
+     */
+    void setByte( int zeroBasedIndex, byte value )
+    {
+        byte[] bytes = (byte[]) bits;
+        
+        bytes[ zeroBasedIndex ] = value;
+    }
+    
+    /**
+     * FIXME: what is the right way to achieve this?
+     */
+    byte getByte( int zeroBasedIndex )
+    {
+        byte[] bytes = (byte[]) bits;
+        
+        return bytes[ zeroBasedIndex ];
+    }
 }

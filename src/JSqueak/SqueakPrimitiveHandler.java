@@ -44,6 +44,8 @@ class SqueakPrimitiveHandler
     private final SqueakVM vm;
     private final SqueakImage image;
     private final BitBlt bitbltTable;
+
+    private final FileSystemPrimitives fileSystemPrimitives = new FileSystemPrimitives( this );
     
     private Screen theDisplay;
     private int[] displayBitmap;
@@ -69,7 +71,6 @@ class SqueakPrimitiveHandler
         initAtCache(); 
     }
     
-
     /**
      * A singleton instance of this class should be thrown to signal that a 
      * primitive has failed.
@@ -312,7 +313,7 @@ class SqueakPrimitiveHandler
                          break;
                 case 69: popNandPush(3,primitiveAtPut(false,false,true)); // Method.objectAt:put:
                          break;
-                case 70: popNandPush(1,vm.instantiateClass(stackNonInteger(0),0)); // Class.new
+                case 70: popNandPush(1,vm.instantiateClass( stackNonInteger( 0 ), 0 ) ); // Class.new
                          break;
                 case 71: popNandPush(2,primitiveNewWithSize()); // Class.new
                          break;
@@ -410,8 +411,35 @@ class SqueakPrimitiveHandler
                           break;
                 case 149: popNandPush(2,vm.nilObj); //getAttribute
                           break;
-                case 161: popNandPush(1,charFromInt(58)); //path delimiter
+                          
+                // File System primitives
+                case 150: popNandPush( 2, fileSystemPrimitives.fileAtEnd( argCount ) );
                           break;
+                case 151: popNandPush( 2, fileSystemPrimitives.fileClose( argCount ) );
+                          break;
+                case 152: popNandPush( 2, fileSystemPrimitives.getPosition( argCount ) );
+                          break;
+                case 153: popNandPush( 3, fileSystemPrimitives.openWritable( argCount ) );
+                          break;
+                case 154: popNandPush( 5, fileSystemPrimitives.readIntoStartingAtCount( argCount ) );
+                          break;
+                case 155: popNandPush( 3, fileSystemPrimitives.fileSetPosition( argCount ) );
+                          break;
+                case 156: popNandPush( 2, fileSystemPrimitives.fileDelete( argCount ) );
+                          break;
+                case 157: popNandPush( 2, fileSystemPrimitives.fileSize( argCount ) );
+                          break;
+                case 158: popNandPush( 5, fileSystemPrimitives.fileWrite( argCount ) );
+                          break;
+                case 159: popNandPush( 3, fileSystemPrimitives.fileRename( argCount ) );
+                          break;
+                case 160: popNandPush( 2, fileSystemPrimitives.directoryCreate( argCount ) );
+                          break;
+                case 161: popNandPush( 1, fileSystemPrimitives.directoryDelimitor()); //path delimiter
+                          break;
+                case 162: popNandPush( 3, fileSystemPrimitives.lookupEntryInIndex( argCount ) ); //path delimiter
+                          break;
+                          
                 case 230: primitiveYield(argCount); //yield for 10ms
                           break;
                 default: return false; 
@@ -513,7 +541,7 @@ class SqueakPrimitiveHandler
         popNandPush( nToPop, makeFloat( returnValue ) ); 
     }
     
-    private int stackInteger(int nDeep) 
+    int stackInteger(int nDeep) 
     {
         return checkSmallInt(vm.stackValue(nDeep)); 
     }
@@ -566,7 +594,7 @@ class SqueakPrimitiveHandler
         return (SqueakObject) maybeSmall; 
     }
     
-    private int stackPos32BitValue(int nDeep) 
+    int stackPos32BitValue(int nDeep) 
     {
         Object stackVal= vm.stackValue(nDeep);
         if (SqueakVM.isSmallInt(stackVal)) 
@@ -588,7 +616,19 @@ class SqueakPrimitiveHandler
         return value; 
     }
 
-    private Object pos32BitIntFor(int pos32Val) 
+    Object pos32BitIntFor( long pos32Val )
+    {
+        if ( pos32Val < Integer.MIN_VALUE ||
+             pos32Val > Integer.MAX_VALUE )
+        {
+            new Exception( "long to int overflow" ).printStackTrace();
+            throw PrimitiveFailed;
+        }
+        
+        return pos32BitIntFor( (int) pos32Val ); 
+    }
+    
+    Object pos32BitIntFor(int pos32Val) 
     {
         // Return the 32-bit quantity as a positive 32-bit integer
         if (pos32Val >= 0) 
@@ -605,15 +645,48 @@ class SqueakPrimitiveHandler
         return lgIntObj; 
     }
     
-    private SqueakObject stackNonInteger(int nDeep) 
+    SqueakObject stackNonInteger(int nDeep) 
     {
         return checkNonSmallInt(vm.stackValue(nDeep)); 
     }
-    
-    // FIXME: Move this method to SqueakVM and *use* it
-    private SqueakObject squeakBool(boolean bool) 
+
+    SqueakObject squeakArray( Object[] javaArray )
     {
-        return bool? vm.trueObj : vm.falseObj; 
+        SqueakObject array = vm.instantiateClass( Squeak.splOb_ClassArray, javaArray.length );
+        for ( int index = 0; index < javaArray.length; index++ )
+            array.setPointer( index, javaArray[index] );
+
+        return array;
+    }
+
+    Object squeakSeconds( long millis )
+    {
+        int secs = (int) ( millis / 1000 ); //milliseconds -> seconds
+        secs += ( 69 * 365 + 17 ) * 24 * 3600; //Adjust from 1901 to 1970
+        
+        return pos32BitIntFor(secs);
+    }
+
+
+    SqueakObject squeakNil()
+    {
+        return vm.nilObj;
+    }
+    
+    SqueakObject squeakBool( boolean bool ) 
+    {
+        return bool ? vm.trueObj : vm.falseObj; 
+    }
+    
+    /**
+     * Note: this method does not check to see that the passed
+     *       object is an instance of Boolean.
+     *       
+     * @return true iff object is the special Squeak true object
+     */
+    boolean javaBool( SqueakObject object )
+    {
+        return object == vm.trueObj; 
     }
     
     private SqueakObject primitiveAsFloat() 
@@ -680,7 +753,8 @@ class SqueakPrimitiveHandler
     
     
     //String and Array Primitives
-    private SqueakObject makeStString(String javaString) 
+    // FIXME: makeStString() but squeakBool() ? Pick one!
+    SqueakObject makeStString(String javaString) 
     {
         byte[] byteString= javaString.getBytes();
         SqueakObject stString= vm.instantiateClass((SqueakObject)vm.specialObjects[Squeak.splOb_ClassString],javaString.length());
@@ -759,7 +833,7 @@ class SqueakPrimitiveHandler
         return SqueakVM.smallFromInt((((byte[])array.bits)[index-1-offset]) & 0xFF); 
     }
     
-    private SqueakObject charFromInt(int ascii) 
+    SqueakObject charFromInt(int ascii) 
     {
         SqueakObject charTable= (SqueakObject)vm.specialObjects[Squeak.splOb_CharacterTable];
         return charTable.getPointerNI(ascii); 
@@ -854,6 +928,7 @@ class SqueakPrimitiveHandler
         return objToPut; 
     }
     
+    // FIXME: is this the same as SqueakObject.instSize() ?
     private int indexableSize(Object obj) 
     {
         if (SqueakVM.isSmallInt(obj)) 
@@ -1463,10 +1538,26 @@ class SqueakPrimitiveHandler
         return true; 
     }
     
-    private Object primSeconds() 
+    Object primSeconds() 
     {
-        int secs= (int)(System.currentTimeMillis()/1000); //milliseconds -> seconds
-        secs+= ((69*365+17)*24*3600); //Adjust from 1901 to 1970
-        return pos32BitIntFor(secs); 
+        long currentTimeMillis = System.currentTimeMillis();
+        return squeakSeconds(currentTimeMillis); 
+    }
+
+    // -- Some support methods -----------------------------------------------------------
+    
+    PrimitiveFailedException primitiveFailed()
+    {
+        return PrimitiveFailed; 
+    }
+
+    /**
+     * FIXME: surely something better can be devised?
+     *        Idea: make argCount a field, then this method
+     *        needs no argument
+     */
+    Object stackReceiver( int argCount )
+    {
+        return vm.stackValue( argCount ); 
     }
 }

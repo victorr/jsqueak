@@ -978,22 +978,22 @@ public class SqueakVM
         {
             int spBefore= sp;
             boolean success= primHandler.doPrimitive(primIndex, argCount);
-//            if (success) {
-//                if (primIndex>=81 && primIndex<=88) return success; // context switches and perform
-//                if (primIndex>=43 && primIndex<=48) return success; // boolean peeks
-//                if (sp != (spBefore-argCount))
-//                    System.err.println("***Stack imbalance on primitive #" + primIndex); }
-//            else{
-//                if (sp != spBefore)
-//                    System.err.println("***Stack imbalance on primitive #" + primIndex);
-//                if (primIndex==103) return success; // scan chars
-//                if (primIndex==230) return success; // yield
-//                if (primIndex==19) return success; // fail
+            if (success) {
+                if (primIndex>=81 && primIndex<=88) return success; // context switches and perform
+                if (primIndex>=43 && primIndex<=48) return success; // boolean peeks
+                if (sp != (spBefore-argCount))
+                    System.err.println("***Stack imbalance on primitive #" + primIndex); }
+            else{
+                if (sp != spBefore)
+                    System.err.println("***Stack imbalance on primitive #" + primIndex);
+                if (primIndex==103) return success; // scan chars
+                if (primIndex==230) return success; // yield
+                if (primIndex==19) return success; // fail
 //                System.err.println("At bytecount " + byteCount + " failed primitive #" + primIndex);
 //                if (primIndex==80) {
 //                    dumpStack();
 //                    int a=primIndex; } // <-- break here
-//                }
+                }
             return success; 
         }
     }
@@ -1107,7 +1107,14 @@ public class SqueakVM
                                     Squeak.Context_smallFrameSize); 
         }
     }
+
+    public SqueakObject instantiateClass( int specialObjectClassIndex,int indexableSize)
+    {
+        return instantiateClass( (SqueakObject) specialObjects[specialObjectClassIndex], 
+                                 indexableSize );
+    }
     
+    // FIXME: remove this method
     public SqueakObject instantiateClass(SqueakObject theClass,int indexableSize) 
     {
         return new SqueakObject(image,theClass,indexableSize,nilObj); 
