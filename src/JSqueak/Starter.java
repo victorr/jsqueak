@@ -24,33 +24,47 @@ THE SOFTWARE.
 package JSqueak;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URL;
 
 public class Starter 
 {
-    public static SqueakImage locateStartableImage(String args[]) throws IOException 
+    /**
+     * The file name of the mini image.
+     */
+    private static final String MINI_IMAGE = "mini.image.gz";
+    
+    /**
+     * Locate a startable image as a resource.
+     */
+    private static SqueakImage locateStartableImage() throws IOException 
     {
-        String name;
-        if (args.length == 0) 
-        {
-            name= "mini.image.gz";
-            //File saved= new File(name);
-            //if (saved.exists()) return new SqueakImage(saved);
-            // and only if no image name was given
-            InputStream ims= Starter.class.getResourceAsStream("mini.image.gz");
-            System.out.println("BINGO: " + ims);
-            if (ims != null) 
-                return new SqueakImage(ims); 
-        }
-        else 
-        {
-            File saved= new File(name= args[0]);
-            if (saved.exists())
-                return new SqueakImage(saved); 
-        }
-        System.err.println("Image " + name + " not found.");
-        return null; 
+        //File saved= new File( pathname );
+        //if (saved.exists()) return new SqueakImage(saved);
+        // and only if no image name was given
+        URL imageUrl = Starter.class.getResource( MINI_IMAGE );
+        if ( "file".equals( imageUrl.getProtocol() ) )
+            return new SqueakImage( new File( imageUrl.getPath() ) );
+            
+        InputStream ims = Starter.class.getResourceAsStream( MINI_IMAGE );
+        if ( ims != null )
+            return new SqueakImage(ims);
+        
+        throw new FileNotFoundException( "Cannot locate resource " + MINI_IMAGE );
+    }
+
+    /**
+     * Locate a startable image at a specified path.
+     */
+    private static SqueakImage locateSavedImage( String pathname ) throws IOException 
+    {
+        File saved = new File( pathname );
+        if ( saved.exists() )
+            return new SqueakImage( saved );
+        
+        throw new FileNotFoundException( "Cannot locate image " + pathname );
     }
     
     /**
@@ -59,19 +73,20 @@ public class Starter
     public static void main(String[] args) throws IOException, NullPointerException, java.lang.ArrayIndexOutOfBoundsException 
     {
         SqueakVM.initSmallIntegerCache();
-        SqueakImage img= locateStartableImage(args);
+        SqueakImage img = args.length > 0 ? locateSavedImage( args[1] )
+                                          : locateStartableImage();
         SqueakVM vm= new SqueakVM(img);
         vm.run(); 
     }
 
-        //Simulation sim= new Simulation(vm);
-            //sim.run();
-            //if (sim.getState() == Executable.CANCELLED) {
-            //    Throwable t= (Throwable)sim.getReturnValue();
-            //    t.printStackTrace(System.err);
-            //}
-        //SqueakVM vm= locateStartableImage(args);
-        //if (vm != null) {
-            //vm.shutdown();
-        //}
+    //Simulation sim= new Simulation(vm);
+    //sim.run();
+    //if (sim.getState() == Executable.CANCELLED) {
+    //    Throwable t= (Throwable)sim.getReturnValue();
+    //    t.printStackTrace(System.err);
+    //}
+    //SqueakVM vm= locateStartableImage(args);
+    //if (vm != null) {
+    //vm.shutdown();
+    //}
 }
