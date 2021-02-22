@@ -301,10 +301,12 @@ public class SqueakObject //Later make variants for common formats
             else if (sqClass==floatClass) 
             {
                 //Floats need two ints to be converted to double
-                long longBits= (((long)((int[])bits)[0])<<32) | (((long)((int[])bits)[0])&0xFFFFFFFF);
-                //System.err.println();
-                //System.err.println(((int[])bits)[0] + " " + ((int[])bits)[1] + " -> " + longBits);
-                bits= new Double(Double.longBitsToDouble(longBits)); 
+                long higherBits = ((long) ((int[]) bits)[0]) << 32;
+                //Use unsigned right shift operator to ignore negative sign
+                long lowerBits = ((long) ((int[]) bits)[1] << 32) >>> 32;
+                long longBits = higherBits | lowerBits;
+
+                bits = Double.longBitsToDouble(longBits);
             }
             //System.err.println((Double)bits + " " + Double.doubleToRawLongBits(((Double)bits).doubleValue()));
         }
