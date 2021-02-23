@@ -65,6 +65,10 @@ import javax.swing.SwingUtilities;
 import javax.swing.Timer;
 import javax.swing.WindowConstants;
 
+import JSqueak.input.InputNotifyThread;
+import JSqueak.input.KeyboardQueue;
+import JSqueak.input.MouseStatus;
+
 public class Screen 
 {
     Dimension fExtent;
@@ -74,6 +78,8 @@ public class Screen
     private byte fDisplayBits[];
     private MouseStatus fMouseStatus;
     private KeyboardQueue fKeyboardQueue;
+    private InputNotifyThread inputNotifyThread;
+    
     private Timer fHeartBeat;
     private boolean fScreenChanged;
     private Object fVMSemaphore;
@@ -126,6 +132,9 @@ public class Screen
         fDisplay.setFocusable(true);    // enable keyboard input
         fKeyboardQueue= new KeyboardQueue( (SqueakVM) fVMSemaphore );
         fDisplay.addKeyListener( fKeyboardQueue );
+        
+        inputNotifyThread = new InputNotifyThread((SqueakVM) fVMSemaphore);
+        inputNotifyThread.start();
         
         fDisplay.setOpaque(true);
         fDisplay.getRootPane().setDoubleBuffered(false);    // prevents losing intermediate redraws (how?!)
@@ -351,5 +360,15 @@ public class Screen
     {
         //System.err.println("character code="+fKeyboardQueue.peek());
         return fKeyboardQueue.next(); 
+    }
+    
+    public void exit() {
+        inputNotifyThread.quit();
+        fFrame.setVisible(false);
+        fFrame.dispose();
+        if (WITH_HEARTBEAT) {
+            fHeartBeat.stop();
+        }
+        System.exit(1);
     }
 }

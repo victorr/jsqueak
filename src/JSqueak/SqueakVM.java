@@ -33,6 +33,7 @@ import java.util.Arrays;
  */
 public class SqueakVM
 {
+    public static final Object inputLock = new Object();
     // static state:
     SqueakImage image;
     SqueakPrimitiveHandler primHandler;
@@ -1315,5 +1316,10 @@ public class SqueakVM
         catch(InterruptedException e) {}
         
         screenEvent = false; 
+    }
+    
+    public void setScreenEvent(boolean hasEvent)
+    {
+        this.screenEvent = hasEvent;
     }
 }
