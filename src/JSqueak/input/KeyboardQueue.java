@@ -1,15 +1,17 @@
-package JSqueak;
+package JSqueak.input;
 
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.util.ArrayList;
 import java.util.List;
 
+import JSqueak.SqueakVM;
+
 /**
  * I'm JSqueak's keyboard driver.  I convert Java KeyEvents into Squeak
  * key and modifier key press events. 
  */
-class KeyboardQueue implements KeyListener
+public class KeyboardQueue implements KeyListener
 {
     /**
      * The size of the character queue.
@@ -73,24 +75,24 @@ class KeyboardQueue implements KeyListener
     
     private int fModifierKeys = 0;
     
-    KeyboardQueue( SqueakVM squeakVM )
+    public KeyboardQueue( SqueakVM squeakVM )
     {
         fSqueakVM = squeakVM;
     }
     
     // -- JSqueak interface
     
-    int peek() 
+    public int peek() 
     {
         return fCharQueue.isEmpty() ? 0 : keycode( (Character) fCharQueue.get( 0 ) ); 
     }
     
-    int next() 
+    public int next() 
     {
         return keycode( (Character) fCharQueue.remove( 0 ) ); 
     }
 
-    int modifierKeys() 
+    public int modifierKeys() 
     {
         return fModifierKeys;
     }
@@ -125,8 +127,6 @@ class KeyboardQueue implements KeyListener
     {
         if ( fCharQueue.size() < TYPEAHEAD_LIMIT )
             fCharQueue.add( new Character( keyChar ) );
-            
-        fSqueakVM.wakeVM();
     }
     
     private static int mapModifierKey( KeyEvent event ) 

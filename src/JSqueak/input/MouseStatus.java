@@ -1,21 +1,23 @@
-package JSqueak;
+package JSqueak.input;
 
 import java.awt.event.MouseEvent;
 
 import javax.swing.event.MouseInputAdapter;
 
-class MouseStatus extends MouseInputAdapter 
+import JSqueak.SqueakVM;
+
+public class MouseStatus extends MouseInputAdapter 
 {
     private final SqueakVM fSqueakVM;
     
-    int fX, fY;
-    int fButtons;
+    public int fX, fY;
+    public int fButtons;
     
     private final static int RED = 4;
     private final static int YELLOW = 2;
     private final static int BLUE = 1;
     
-    MouseStatus( SqueakVM squeakVM )
+    public MouseStatus( SqueakVM squeakVM )
     {
         fSqueakVM = squeakVM;
     }
@@ -41,25 +43,21 @@ class MouseStatus extends MouseInputAdapter
     {
         fX = evt.getX();
         fY = evt.getY();
-        fSqueakVM.wakeVM(); 
     }
     
     public void mouseDragged(MouseEvent evt) 
     {
         fX= evt.getX();
         fY= evt.getY();
-        fSqueakVM.wakeVM(); 
     }
     
     public void mousePressed(MouseEvent evt) 
     {
-        fButtons |= mapButton(evt);
-        fSqueakVM.wakeVM(); 
+        fButtons |= mapButton(evt); 
     }
     
     public void mouseReleased(MouseEvent evt) 
     {
         fButtons &= ~mapButton(evt);
-        fSqueakVM.wakeVM();
     }
 }
