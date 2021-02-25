@@ -5,7 +5,6 @@ import JSqueak.SqueakVM;
 /**
  * InputNotifyThread will notify VM input events
  * at a fixed-frequency
- *
  */
 public class InputNotifyThread extends Thread {
 

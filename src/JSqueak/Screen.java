@@ -69,8 +69,7 @@ import JSqueak.input.InputNotifyThread;
 import JSqueak.input.KeyboardQueue;
 import JSqueak.input.MouseStatus;
 
-public class Screen 
-{
+public class Screen {
     Dimension fExtent;
     private int fDepth;
     private JFrame fFrame;
@@ -79,289 +78,244 @@ public class Screen
     private MouseStatus fMouseStatus;
     private KeyboardQueue fKeyboardQueue;
     private InputNotifyThread inputNotifyThread;
-    
+
     private Timer fHeartBeat;
     private boolean fScreenChanged;
     private Object fVMSemaphore;
-    
-    private final static boolean WITH_HEARTBEAT= false;
-    private final static int FPS= 10;
-    
+
+    private final static boolean WITH_HEARTBEAT = false;
+    private final static int FPS = 10;
+
     // cf. http://doc.novsu.ac.ru/oreilly/java/awt/ch12_02.htm
     private final static byte kComponents[] =
-        new byte[]{ (byte)255, 0 , (byte)240, (byte)230, 
-                    (byte)220, (byte)210, (byte)200, (byte)190, (byte)180, (byte)170,
-                    (byte)160, (byte)150, 110, 70, 30, 10 };
-    
+            new byte[]{(byte) 255, 0, (byte) 240, (byte) 230,
+                    (byte) 220, (byte) 210, (byte) 200, (byte) 190, (byte) 180, (byte) 170,
+                    (byte) 160, (byte) 150, 110, 70, 30, 10};
+
     private final static ColorModel kBlackAndWhiteModel =
-        new IndexColorModel(1, 2, kComponents, kComponents, kComponents);
-    
-    public Screen(String title, int width, int height, int depth, Object vmSema) 
-    {
-        fVMSemaphore= vmSema;
-        fExtent= new Dimension(width, height);
-        fDepth= depth;
-        fFrame= new JFrame(title);
+            new IndexColorModel(1, 2, kComponents, kComponents, kComponents);
+
+    public Screen(String title, int width, int height, int depth, Object vmSema) {
+        fVMSemaphore = vmSema;
+        fExtent = new Dimension(width, height);
+        fDepth = depth;
+        fFrame = new JFrame(title);
         fFrame.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
-        JPanel content= new JPanel(new BorderLayout());
-        Icon noDisplay= new Icon() 
-        {
-            public int getIconWidth() 
-            {
-                return fExtent.width; 
+        JPanel content = new JPanel(new BorderLayout());
+        Icon noDisplay = new Icon() {
+            public int getIconWidth() {
+                return fExtent.width;
             }
-            
-            public int getIconHeight() 
-            {
-                return fExtent.height; 
+
+            public int getIconHeight() {
+                return fExtent.height;
             }
-            
-            public void paintIcon(Component c, Graphics g, int x, int y) {}
+
+            public void paintIcon(Component c, Graphics g, int x, int y) {
+            }
         };
-        fDisplay= new JLabel(noDisplay);
+        fDisplay = new JLabel(noDisplay);
         fDisplay.setSize(fExtent);
         content.add(fDisplay, BorderLayout.CENTER);
         fFrame.setContentPane(content);
         Dimension screen = Toolkit.getDefaultToolkit().getScreenSize();
-        fFrame.setLocation((screen.width - fExtent.width)/2, (screen.height - fExtent.height)/2);   // center
-        
-        fMouseStatus= new MouseStatus( (SqueakVM) fVMSemaphore );
-        fDisplay.addMouseMotionListener( fMouseStatus );
+        fFrame.setLocation((screen.width - fExtent.width) / 2, (screen.height - fExtent.height) / 2);   // center
+
+        fMouseStatus = new MouseStatus((SqueakVM) fVMSemaphore);
+        fDisplay.addMouseMotionListener(fMouseStatus);
         fDisplay.addMouseListener(fMouseStatus);
-        
+
         fDisplay.setFocusable(true);    // enable keyboard input
-        fKeyboardQueue= new KeyboardQueue( (SqueakVM) fVMSemaphore );
-        fDisplay.addKeyListener( fKeyboardQueue );
-        
+        fKeyboardQueue = new KeyboardQueue((SqueakVM) fVMSemaphore);
+        fDisplay.addKeyListener(fKeyboardQueue);
+
         inputNotifyThread = new InputNotifyThread((SqueakVM) fVMSemaphore);
         inputNotifyThread.start();
-        
+
         fDisplay.setOpaque(true);
         fDisplay.getRootPane().setDoubleBuffered(false);    // prevents losing intermediate redraws (how?!)
     }
-    
-    public JFrame getFrame() 
-    {
-        return fFrame; 
+
+    public JFrame getFrame() {
+        return fFrame;
     }
-    
-    public void setBits(byte rawBits[], int depth) 
-    {
-        fDepth= depth;
-        fDisplay.setIcon(createDisplayAdapter(fDisplayBits= rawBits)); 
+
+    public void setBits(byte rawBits[], int depth) {
+        fDepth = depth;
+        fDisplay.setIcon(createDisplayAdapter(fDisplayBits = rawBits));
     }
-    
-    byte[] getBits() 
-    {
-        return fDisplayBits; 
+
+    byte[] getBits() {
+        return fDisplayBits;
     }
-    
-    protected Icon createDisplayAdapter(byte storage[]) 
-    {
-        DataBuffer buf= new DataBufferByte(storage, (fExtent.height*fExtent.width/8)*fDepth);       // single bank
-        SampleModel sm= new MultiPixelPackedSampleModel(DataBuffer.TYPE_BYTE, fExtent.width, fExtent.height, fDepth /* bpp */);
-        WritableRaster raster= Raster.createWritableRaster(sm, buf, new Point(0, 0));
-        Image image= new BufferedImage(kBlackAndWhiteModel, raster, true, null);
-        return new ImageIcon(image); 
+
+    protected Icon createDisplayAdapter(byte storage[]) {
+        DataBuffer buf = new DataBufferByte(storage, (fExtent.height * fExtent.width / 8) * fDepth);       // single bank
+        SampleModel sm = new MultiPixelPackedSampleModel(DataBuffer.TYPE_BYTE, fExtent.width, fExtent.height, fDepth /* bpp */);
+        WritableRaster raster = Raster.createWritableRaster(sm, buf, new Point(0, 0));
+        Image image = new BufferedImage(kBlackAndWhiteModel, raster, true, null);
+        return new ImageIcon(image);
     }
-    
-    public void open() 
-    {
+
+    public void open() {
         fFrame.pack();
         fFrame.setVisible(true);
-        if (WITH_HEARTBEAT) 
-        {
-            fHeartBeat= new Timer(1000/FPS /* ms */, new ActionListener() 
-            {
-                public void actionPerformed(ActionEvent evt) 
-                {
+        if (WITH_HEARTBEAT) {
+            fHeartBeat = new Timer(1000 / FPS /* ms */, new ActionListener() {
+                public void actionPerformed(ActionEvent evt) {
                     // Swing timers execute on EHT
-                    if (fScreenChanged) 
-                    {
+                    if (fScreenChanged) {
                         // could use synchronization, but lets rather paint too often
-                        fScreenChanged= false;
-                        Dimension extent= fDisplay.getSize();
+                        fScreenChanged = false;
+                        Dimension extent = fDisplay.getSize();
                         fDisplay.paintImmediately(0, 0, extent.width, extent.height);
                         // Toolkit.getDefaultToolkit().beep();      // FIXME remove
                     }
                 }
-            } );
-            fHeartBeat.start(); 
+            });
+            fHeartBeat.start();
         }
     }
-    
-    public void close() 
-    {
+
+    public void close() {
         fFrame.setVisible(false);
         fFrame.dispose();
         if (WITH_HEARTBEAT)
-            fHeartBeat.stop(); 
+            fHeartBeat.stop();
     }
-    
-    public void redisplay(boolean immediately, Rectangle area) 
-    {
-        redisplay(immediately, area.x, area.y, area.width, area.height); 
+
+    public void redisplay(boolean immediately, Rectangle area) {
+        redisplay(immediately, area.x, area.y, area.width, area.height);
     }
-    
-    public void redisplay(boolean immediately, final int cornerX, final int cornerY, final int width, final int height) 
-    {
+
+    public void redisplay(boolean immediately, final int cornerX, final int cornerY, final int width, final int height) {
         fDisplay.repaint(cornerX, cornerY, width, height);
-        fScreenChanged= true; 
+        fScreenChanged = true;
     }
-    
-    public void redisplay(boolean immediately) 
-    {
+
+    public void redisplay(boolean immediately) {
         fDisplay.repaint();
-        fScreenChanged= true; 
+        fScreenChanged = true;
     }
-    
-    protected boolean scheduleRedisplay(boolean immediately, Runnable trigger) 
-    {
-        if (immediately) 
-        {
-            try
-            {
+
+    protected boolean scheduleRedisplay(boolean immediately, Runnable trigger) {
+        if (immediately) {
+            try {
                 SwingUtilities.invokeAndWait(trigger);
-                return true; 
-            }
-            catch (InterruptedException e) 
-            {
-                logRedisplayException(e); 
-            }
-            catch (InvocationTargetException e) 
-            {
+                return true;
+            } catch (InterruptedException e) {
+                logRedisplayException(e);
+            } catch (InvocationTargetException e) {
                 logRedisplayException(e);
             }
-            return false; 
-        }
-        else 
-        {
+            return false;
+        } else {
             SwingUtilities.invokeLater(trigger);
-            return true; 
+            return true;
         }
     }
-    
+
     // extension point, default is ignorance
-    protected void logRedisplayException(Exception e) {}
-    
-    private final static int Squeak_CURSOR_WIDTH= 16;
-    private final static int Squeak_CURSOR_HEIGHT= 16;
-    
-    private final static byte C_WHITE= 0;
-    private final static byte C_BLACK= 1;
-    private final static byte C_TRANSPARENT= 2;
-    private final static byte kCursorComponentX[]= new byte[] { -1, 0, 0 };
-    private final static byte kCursorComponentA[]= new byte[] { -1, -1, 0 };
-    
-    protected Image createCursorAdapter(byte bits[], byte mask[]) 
-    {
-        int bufSize= Squeak_CURSOR_HEIGHT*Squeak_CURSOR_WIDTH;
-        DataBuffer buf= new DataBufferByte(new byte[bufSize], bufSize);
+    protected void logRedisplayException(Exception e) {
+    }
+
+    private final static int Squeak_CURSOR_WIDTH = 16;
+    private final static int Squeak_CURSOR_HEIGHT = 16;
+
+    private final static byte C_WHITE = 0;
+    private final static byte C_BLACK = 1;
+    private final static byte C_TRANSPARENT = 2;
+    private final static byte kCursorComponentX[] = new byte[]{-1, 0, 0};
+    private final static byte kCursorComponentA[] = new byte[]{-1, -1, 0};
+
+    protected Image createCursorAdapter(byte bits[], byte mask[]) {
+        int bufSize = Squeak_CURSOR_HEIGHT * Squeak_CURSOR_WIDTH;
+        DataBuffer buf = new DataBufferByte(new byte[bufSize], bufSize);
         // unpack samples and mask to bytes with transparency:
-        int p= 0;
-        for (int row= 0; row<Squeak_CURSOR_HEIGHT; row++) 
-        {
-            for (int x=0; x<2; x++) 
-            {
-                for (int col= 0x80; col!=0; col>>>= 1) 
-                {
-                    if ((mask[(row*4)+x] & col) != 0)
-                        buf.setElem(p++, (bits[(row*4)+x] & col) != 0? C_BLACK : C_WHITE);
+        int p = 0;
+        for (int row = 0; row < Squeak_CURSOR_HEIGHT; row++) {
+            for (int x = 0; x < 2; x++) {
+                for (int col = 0x80; col != 0; col >>>= 1) {
+                    if ((mask[(row * 4) + x] & col) != 0)
+                        buf.setElem(p++, (bits[(row * 4) + x] & col) != 0 ? C_BLACK : C_WHITE);
                     else
-                        buf.setElem(p++, C_TRANSPARENT); 
+                        buf.setElem(p++, C_TRANSPARENT);
                 }
             }
         }
-        SampleModel sm= new SinglePixelPackedSampleModel(DataBuffer.TYPE_BYTE, Squeak_CURSOR_WIDTH, Squeak_CURSOR_HEIGHT, new int[]{ 255 });
-        IndexColorModel cm= new IndexColorModel(8, 3, kCursorComponentX, kCursorComponentX, kCursorComponentX, kCursorComponentA);
-        WritableRaster raster= Raster.createWritableRaster(sm, buf, new Point(0, 0));
-        return new BufferedImage(cm, raster, false, null); 
+        SampleModel sm = new SinglePixelPackedSampleModel(DataBuffer.TYPE_BYTE, Squeak_CURSOR_WIDTH, Squeak_CURSOR_HEIGHT, new int[]{255});
+        IndexColorModel cm = new IndexColorModel(8, 3, kCursorComponentX, kCursorComponentX, kCursorComponentX, kCursorComponentA);
+        WritableRaster raster = Raster.createWritableRaster(sm, buf, new Point(0, 0));
+        return new BufferedImage(cm, raster, false, null);
     }
-    
-    protected byte[] extractBits(byte bitsAndMask[], int offset) 
-    {
-        final int n= bitsAndMask.length/2;  // 32 bytes -> 8 bytes
-        byte answer[]= new byte[n];
-        for (int i= 0; i<n; i++) 
-        {
+
+    protected byte[] extractBits(byte bitsAndMask[], int offset) {
+        final int n = bitsAndMask.length / 2;  // 32 bytes -> 8 bytes
+        byte answer[] = new byte[n];
+        for (int i = 0; i < n; i++) {
             // convert incoming little-endian words to bytes:
-            answer[i]= bitsAndMask[offset + i]; 
+            answer[i] = bitsAndMask[offset + i];
         }
-        return answer; 
+        return answer;
     }
-    
-    public void setCursor(byte imageAndMask[], int BWMask) 
-    {
-        int n= imageAndMask.length;
-        for(int i=0; i<n/2; i++) 
-        {
+
+    public void setCursor(byte imageAndMask[], int BWMask) {
+        int n = imageAndMask.length;
+        for (int i = 0; i < n / 2; i++) {
             imageAndMask[i] ^= BWMask; // reverse cursor bits all the time
-            imageAndMask[i+(n/2)] ^= BWMask;  // reverse transparency if display reversed
+            imageAndMask[i + (n / 2)] ^= BWMask;  // reverse transparency if display reversed
         }
-        Toolkit tk= Toolkit.getDefaultToolkit();
-        Dimension cx= tk.getBestCursorSize(Squeak_CURSOR_WIDTH, Squeak_CURSOR_HEIGHT);
+        Toolkit tk = Toolkit.getDefaultToolkit();
+        Dimension cx = tk.getBestCursorSize(Squeak_CURSOR_WIDTH, Squeak_CURSOR_HEIGHT);
         Cursor c;
-        if (cx.width == 0 || cx.height == 0) 
-        {
-            c= Cursor.getDefaultCursor(); 
+        if (cx.width == 0 || cx.height == 0) {
+            c = Cursor.getDefaultCursor();
+        } else {
+            Image ci = createCursorAdapter(extractBits(imageAndMask, 0), extractBits(imageAndMask, Squeak_CURSOR_HEIGHT * 4));
+            c = tk.createCustomCursor(ci, new Point(0, 0), "Smalltalk-78 cursor");
         }
-        else 
-        {
-            Image ci= createCursorAdapter(extractBits(imageAndMask, 0), extractBits(imageAndMask, Squeak_CURSOR_HEIGHT*4));
-            c= tk.createCustomCursor(ci, new Point(0, 0), "Smalltalk-78 cursor"); 
-        }
-        fDisplay.setCursor(c); 
+        fDisplay.setCursor(c);
     }
-    
-    public Dimension getExtent() 
-    {
-        return fDisplay.getSize(); 
+
+    public Dimension getExtent() {
+        return fDisplay.getSize();
     }
-    
-    public void setExtent(Dimension extent) 
-    {
+
+    public void setExtent(Dimension extent) {
         fDisplay.setSize(extent);
-        fFrame.setSize(extent); 
+        fFrame.setSize(extent);
     }
-    
-    public Point getLastMousePoint() 
-    {
-        return new Point(fMouseStatus.fX, fMouseStatus.fY); 
+
+    public Point getLastMousePoint() {
+        return new Point(fMouseStatus.fX, fMouseStatus.fY);
     }
-    
-    public int getLastMouseButtonStatus() 
-    {
-        return ( fMouseStatus.fButtons & 7 ) | fKeyboardQueue.modifierKeys();
+
+    public int getLastMouseButtonStatus() {
+        return (fMouseStatus.fButtons & 7) | fKeyboardQueue.modifierKeys();
     }
-    
-    public void setMousePoint(int x, int y) 
-    {
-        Point origin= fDisplay.getLocationOnScreen();
-        x+= origin.x;
-        y+= origin.y;
-        try 
-        {
+
+    public void setMousePoint(int x, int y) {
+        Point origin = fDisplay.getLocationOnScreen();
+        x += origin.x;
+        y += origin.y;
+        try {
             Robot robot = new Robot();
-            robot.mouseMove(x, y); 
-        }
-        catch (AWTException e) 
-        {
+            robot.mouseMove(x, y);
+        } catch (AWTException e) {
             // ignore silently?
-            System.err.println("Mouse move to " + x + "@" + y + " failed."); 
+            System.err.println("Mouse move to " + x + "@" + y + " failed.");
         }
     }
-    
-    public int keyboardPeek() 
-    {
-        return fKeyboardQueue.peek(); 
+
+    public int keyboardPeek() {
+        return fKeyboardQueue.peek();
     }
-    
-    public int keyboardNext() 
-    {
+
+    public int keyboardNext() {
         //System.err.println("character code="+fKeyboardQueue.peek());
-        return fKeyboardQueue.next(); 
+        return fKeyboardQueue.next();
     }
-    
+
     public void exit() {
         inputNotifyThread.quit();
         fFrame.setVisible(false);
