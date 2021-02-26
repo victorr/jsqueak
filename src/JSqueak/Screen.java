@@ -31,43 +31,17 @@ THE SOFTWARE.
 
 package JSqueak;
 
-import java.awt.AWTException;
-import java.awt.BorderLayout;
-import java.awt.Component;
-import java.awt.Cursor;
-import java.awt.Dimension;
-import java.awt.Graphics;
-import java.awt.Image;
-import java.awt.Point;
-import java.awt.Rectangle;
-import java.awt.Robot;
-import java.awt.Toolkit;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.image.BufferedImage;
-import java.awt.image.ColorModel;
-import java.awt.image.DataBuffer;
-import java.awt.image.DataBufferByte;
-import java.awt.image.IndexColorModel;
-import java.awt.image.MultiPixelPackedSampleModel;
-import java.awt.image.Raster;
-import java.awt.image.SampleModel;
-import java.awt.image.SinglePixelPackedSampleModel;
-import java.awt.image.WritableRaster;
-import java.lang.reflect.InvocationTargetException;
-
-import javax.swing.Icon;
-import javax.swing.ImageIcon;
-import javax.swing.JFrame;
-import javax.swing.JLabel;
-import javax.swing.JPanel;
-import javax.swing.SwingUtilities;
-import javax.swing.Timer;
-import javax.swing.WindowConstants;
-
 import JSqueak.input.InputNotifyThread;
 import JSqueak.input.KeyboardQueue;
 import JSqueak.input.MouseStatus;
+import JSqueak.utils.ScreenUtils;
+
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.image.*;
+import java.lang.reflect.InvocationTargetException;
 
 public class Screen {
     Dimension fExtent;
@@ -116,6 +90,9 @@ public class Screen {
         };
         fDisplay = new JLabel(noDisplay);
         fDisplay.setSize(fExtent);
+        fDisplay.setHorizontalAlignment(SwingConstants.LEFT);
+        fDisplay.setVerticalAlignment(SwingConstants.TOP);
+
         content.add(fDisplay, BorderLayout.CENTER);
         fFrame.setContentPane(content);
         Dimension screen = Toolkit.getDefaultToolkit().getScreenSize();
@@ -140,20 +117,30 @@ public class Screen {
         return fFrame;
     }
 
-    public void setBits(byte rawBits[], int depth) {
+    public void setBits(int rawBits[], int depth) {
         fDepth = depth;
-        fDisplay.setIcon(createDisplayAdapter(fDisplayBits = rawBits));
+        fDisplay.setIcon(createDisplayAdapter(rawBits));
     }
 
     byte[] getBits() {
         return fDisplayBits;
     }
 
-    protected Icon createDisplayAdapter(byte storage[]) {
-        DataBuffer buf = new DataBufferByte(storage, (fExtent.height * fExtent.width / 8) * fDepth);       // single bank
-        SampleModel sm = new MultiPixelPackedSampleModel(DataBuffer.TYPE_BYTE, fExtent.width, fExtent.height, fDepth /* bpp */);
+    protected Icon createDisplayAdapter(int storage[]) {
+        DataBuffer buf = new DataBufferInt(storage, (fExtent.height * fExtent.width) * fDepth);
+        SampleModel sm = new MultiPixelPackedSampleModel(DataBuffer.TYPE_INT, fExtent.width, fExtent.height, fDepth);
         WritableRaster raster = Raster.createWritableRaster(sm, buf, new Point(0, 0));
-        Image image = new BufferedImage(kBlackAndWhiteModel, raster, true, null);
+        Image image;
+        if (fDepth == 1) {
+            // Black&White color model
+            ColorModel colorModel = ScreenUtils.getBlackWhiteModel();
+            image = new BufferedImage(colorModel, raster, colorModel.isAlphaPremultiplied(), null);
+        } else {
+            // 8-bit color model
+            ColorModel colorModel = ScreenUtils.get256ColorModel();
+            image = new BufferedImage(colorModel, raster, false, null);
+        }
+        // TODO adding support for more color depth
         return new ImageIcon(image);
     }
 

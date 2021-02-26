@@ -49,7 +49,6 @@ class SqueakPrimitiveHandler {
     private Screen theDisplay;
     private int[] displayBitmap;
     private int displayRaster;
-    private byte[] displayBitmapInBytes;
     private int BWMask = 0;
 
 
@@ -1336,10 +1335,7 @@ class SqueakPrimitiveHandler {
                                                     }
             );
         }
-        displayBitmapInBytes = new byte[displayBitmap.length * 4];
-        copyBitmapToByteArray(displayBitmap, displayBitmapInBytes,
-                new Rectangle(0, 0, disp.width, disp.height), disp.pitch, disp.depth);
-        theDisplay.setBits(displayBitmapInBytes, disp.depth);
+        theDisplay.setBits(displayBitmap, disp.depth);
         if (!remap)
             theDisplay.open();
     }
@@ -1406,8 +1402,6 @@ class SqueakPrimitiveHandler {
 
         Rectangle affectedArea = bitbltTable.copyBits();
         if (affectedArea != null && theDisplay != null) {
-            copyBitmapToByteArray(displayBitmap, displayBitmapInBytes, affectedArea,
-                    bitbltTable.dest.pitch, bitbltTable.dest.depth);
             theDisplay.redisplay(false, affectedArea);
         }
         if (bitbltTable.combinationRule == 22 || bitbltTable.combinationRule == 32)
@@ -1429,11 +1423,12 @@ class SqueakPrimitiveHandler {
             }
         }
 
-        //        int word;
-        //        for(int i=0; i<words.length; i++) {
-        //            word= ~(words[i]);
-        //            for(int j=0; j<4; j++)
-        //                bytes[(i*4)+j]= (byte)((word>>>((3-j)*8))&255); }
+        /*int word;
+        for (int i = 0; i < words.length; i++) {
+            word = ~(words[i]);
+            for (int j = 0; j < 4; j++)
+                bytes[(i * 4) + j] = (byte) ((word >>> ((3 - j) * 8)) );
+        }*/
     }
 
     private SqueakObject primitiveMousePoint() {

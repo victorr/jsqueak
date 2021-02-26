@@ -751,13 +751,13 @@ public class BitBlt {
                 destWord = destWord | ((destPix & dstMask) << dstShift);
                 /* adjust source pix index */
                 dstShift += dstShiftInc;
-                if (!(((srcShift += srcShiftInc) & AllOnes) == 0)) {
+                if (!(((srcShift += srcShiftInc) & 0xFFFFFFE0) == 0)) {
                     if (source.msb) {
                         srcShift += 32;
                     } else {
                         srcShift -= 32;
                     }
-                    sourceWord = srcLongAt(sourceIndex += 4);
+                    sourceWord = srcLongAt(sourceIndex += 1);
                 }
             } while (!((nPix -= 1) == 0));
         } /*clean double-neg here*/ else {
@@ -768,7 +768,7 @@ public class BitBlt {
                 destWord = destWord | ((destPix & dstMask) << dstShift);
                 /* adjust source pix index */
                 dstShift += dstShiftInc;
-                if (!(((srcShift += srcShiftInc) & AllOnes) == 0)) {
+                if (!(((srcShift += srcShiftInc) & 0xFFFFFFE0) == 0)) {
                     if (source.msb) {
                         srcShift += 32;
                     } else {
