@@ -23,6 +23,8 @@ THE SOFTWARE.
 
 package JSqueak;
 
+import JSqueak.utils.SqueakLogger;
+
 import java.awt.Dimension;
 import java.awt.Point;
 import java.awt.Rectangle;
@@ -413,7 +415,7 @@ class SqueakPrimitiveHandler {
                     popNandPush(5, primitiveStringReplace()); // string and array replace
                     break;
                 case 106:
-                    popNandPush(1, makePointWithXandY(SqueakVM.smallFromInt(640), SqueakVM.smallFromInt(480))); // actualScreenSize // FIXME: Use real size
+                    primitiveScreenSize();
                     break;
                 case 107:
                     popNandPush(1, primitiveMouseButtons()); // Sensor mouseButtons
@@ -1484,6 +1486,23 @@ class SqueakPrimitiveHandler {
     private SqueakObject primitiveNextInstance(SqueakObject priorInstance) {
         SqueakObject sqClass = (SqueakObject) priorInstance.sqClass;
         return image.nextInstance(image.otIndexOfObject(priorInstance) + 1, sqClass);
+    }
+
+    private boolean primitiveScreenSize() {
+        int width = 640;
+        int height = 480;
+        if (theDisplay != null && theDisplay.fExtent != null) {
+            width = theDisplay.fExtent.width;
+            height = theDisplay.fExtent.height;
+        }
+        SqueakLogger.log_D("primitiveScreenSize width: " + width + " height: " + height);
+        try {
+            popNandPush(1, makePointWithXandY(SqueakVM.smallFromInt(width), SqueakVM.smallFromInt(height))); // actualScreenSize
+        } catch (Exception e) {
+            throw PrimitiveFailed;
+        }
+
+        return true;
     }
 
     private boolean relinquishProcessor() {

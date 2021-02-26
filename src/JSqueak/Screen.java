@@ -35,11 +35,14 @@ import JSqueak.input.InputNotifyThread;
 import JSqueak.input.KeyboardQueue;
 import JSqueak.input.MouseStatus;
 import JSqueak.utils.ScreenUtils;
+import JSqueak.utils.SqueakLogger;
 
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.ComponentEvent;
+import java.awt.event.ComponentListener;
 import java.awt.image.*;
 import java.lang.reflect.InvocationTargetException;
 
@@ -47,6 +50,7 @@ public class Screen {
     Dimension fExtent;
     private int fDepth;
     private JFrame fFrame;
+    private JPanel contentView;
     private JLabel fDisplay;
     private byte fDisplayBits[];
     private MouseStatus fMouseStatus;
@@ -57,8 +61,8 @@ public class Screen {
     private boolean fScreenChanged;
     private Object fVMSemaphore;
 
-    private final static boolean WITH_HEARTBEAT = false;
-    private final static int FPS = 10;
+    private final static boolean WITH_HEARTBEAT = true;
+    private final static int FPS = 30;
 
     // cf. http://doc.novsu.ac.ru/oreilly/java/awt/ch12_02.htm
     private final static byte kComponents[] =
@@ -75,7 +79,7 @@ public class Screen {
         fDepth = depth;
         fFrame = new JFrame(title);
         fFrame.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
-        JPanel content = new JPanel(new BorderLayout());
+        contentView = new JPanel(new BorderLayout());
         Icon noDisplay = new Icon() {
             public int getIconWidth() {
                 return fExtent.width;
@@ -93,10 +97,33 @@ public class Screen {
         fDisplay.setHorizontalAlignment(SwingConstants.LEFT);
         fDisplay.setVerticalAlignment(SwingConstants.TOP);
 
-        content.add(fDisplay, BorderLayout.CENTER);
-        fFrame.setContentPane(content);
+        contentView.add(fDisplay, BorderLayout.CENTER);
+        fFrame.setContentPane(contentView);
         Dimension screen = Toolkit.getDefaultToolkit().getScreenSize();
         fFrame.setLocation((screen.width - fExtent.width) / 2, (screen.height - fExtent.height) / 2);   // center
+        fFrame.addComponentListener(new ComponentListener() {
+            @Override
+            public void componentResized(ComponentEvent e) {
+                Dimension currentDimension = fDisplay.getSize();
+                SqueakLogger.log_D("fDisplay resized width: " + currentDimension.width + "height: " + currentDimension.height);
+                fExtent.setSize(currentDimension.width, currentDimension.height);
+            }
+
+            @Override
+            public void componentMoved(ComponentEvent e) {
+
+            }
+
+            @Override
+            public void componentShown(ComponentEvent e) {
+
+            }
+
+            @Override
+            public void componentHidden(ComponentEvent e) {
+
+            }
+        });
 
         fMouseStatus = new MouseStatus((SqueakVM) fVMSemaphore);
         fDisplay.addMouseMotionListener(fMouseStatus);
@@ -155,8 +182,7 @@ public class Screen {
                         // could use synchronization, but lets rather paint too often
                         fScreenChanged = false;
                         Dimension extent = fDisplay.getSize();
-                        fDisplay.paintImmediately(0, 0, extent.width, extent.height);
-                        // Toolkit.getDefaultToolkit().beep();      // FIXME remove
+                        fDisplay.repaint(0, 0, extent.width, extent.height);
                     }
                 }
             });
@@ -164,6 +190,7 @@ public class Screen {
         }
     }
 
+    @Deprecated
     public void close() {
         fFrame.setVisible(false);
         fFrame.dispose();
@@ -176,15 +203,16 @@ public class Screen {
     }
 
     public void redisplay(boolean immediately, final int cornerX, final int cornerY, final int width, final int height) {
-        fDisplay.repaint(cornerX, cornerY, width, height);
         fScreenChanged = true;
     }
 
+    @Deprecated
     public void redisplay(boolean immediately) {
         fDisplay.repaint();
         fScreenChanged = true;
     }
 
+    @Deprecated
     protected boolean scheduleRedisplay(boolean immediately, Runnable trigger) {
         if (immediately) {
             try {
