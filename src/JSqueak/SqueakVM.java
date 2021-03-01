@@ -32,7 +32,11 @@ import java.util.Arrays;
  * The virtual machinery for executing Squeak bytecode.
  */
 public class SqueakVM {
+
     public static final Object inputLock = new Object();
+
+    public static SqueakVM INSTANCE = null;
+
     // static state:
     SqueakImage image;
     SqueakPrimitiveHandler primHandler;
@@ -1526,5 +1530,13 @@ public class SqueakVM {
 
     public void setScreenEvent(boolean hasEvent) {
         this.screenEvent = hasEvent;
+    }
+
+    public void setSuccess(boolean suc) {
+        this.success = suc;
+    }
+
+    public boolean isSuccess() {
+        return this.success;
     }
 }

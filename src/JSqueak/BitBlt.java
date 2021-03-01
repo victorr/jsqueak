@@ -31,6 +31,42 @@ import java.awt.Rectangle;
  * Will eventually implement the full BitBlt plus Warp Drive(tm)
  */
 public class BitBlt {
+
+    static class Const {
+        static long AllOnes = 0xFFFFFFFF;
+        static int AlphaIndex = 3;
+        static int BBClipHeightIndex = 13;
+        static int BBClipWidthIndex = 12;
+        static int BBClipXIndex = 10;
+        static int BBClipYIndex = 11;
+        static int BBColorMapIndex = 14;
+        static int BBDestFormIndex = 0;
+        static int BBDestXIndex = 4;
+        static int BBDestYIndex = 5;
+        static int BBHalftoneFormIndex = 2;
+        static int BBHeightIndex = 7;
+        static int BBRuleIndex = 3;
+        static int BBSourceFormIndex = 1;
+        static int BBSourceXIndex = 8;
+        static int BBSourceYIndex = 9;
+        static int BBWarpBase = 15;
+        static int BBWidthIndex = 6;
+        static int BinaryPoint = 14;
+        static int BlueIndex = 2;
+        static int ColorMapFixedPart = 2;
+        static int ColorMapIndexedPart = 4;
+        static int ColorMapNewStyle = 8;
+        static int ColorMapPresent = 1;
+        static int FixedPt1 = 16384;
+        static int FormBitsIndex = 0;
+        static int FormDepthIndex = 3;
+        static int FormHeightIndex = 2;
+        static int FormWidthIndex = 1;
+        static int GreenIndex = 1;
+        static int OpTableSize = 43;
+        static int RedIndex = 0;
+    }
+
     private SqueakVM vm;
 
     private Object destForm;
@@ -98,6 +134,7 @@ public class BitBlt {
     private final static int maskTable[] = {
             // Squeak's table for masking pixels within a word, based on depth'
             //  #(1 2 4 5 8 16 32) do:[:i| maskTable at: i put: (1 << i)-1].
+            0, // add 0 at index 0
             0x1, 0x3, 0, 0xF, 0x1F, 0, 0, 0xFF,
             0, 0, 0, 0, 0, 0, 0, 0xFFFF,
             0, 0, 0, 0, 0, 0, 0, 0,
@@ -107,6 +144,7 @@ public class BitBlt {
         vm = theVM;
         dest = vm.newFormCache();
         source = vm.newFormCache();
+        initBBOpTable();
     }
 
     boolean loadBitBlt(SqueakObject bbObject,
@@ -137,10 +175,10 @@ public class BitBlt {
         } else {
             if (!source.loadFrom(sourceForm))
                 return false;
-            if (!loadColorMap())
+            if (!loadColorMap(bbObject))
                 return false;
             if ((cmFlags & 8) == 0)
-                setUpColorMasks();
+                setupColorMasks();
             sourceX = checkIntOrFloatIfNil(bbPointers[8], 0);
             sourceY = checkIntOrFloatIfNil(bbPointers[9], 0);
         }
@@ -264,14 +302,197 @@ public class BitBlt {
         return success;
     }
 
-    boolean loadColorMap() {
-        // Not yet implemented
+    boolean loadColorMap(SqueakObject bbObject) {
+        int BBColorMapIndex = 14;
+
+        Object oop = null;
+        Object cmOop = null;
+        int cmSize = 0;
+        boolean oldStyle = false;
+
+        cmBitsPerColor = 0;
+        cmMask = 0;
+        cmFlags = 0;
+
+        cmShiftTable = null;
+        cmMaskTable = null;
+        cmLookupTable = null;
+
+        cmOop = InterpreterProxy.fetchPointerOfObject(BBColorMapIndex, bbObject);
+        if (cmOop == null || cmOop == vm.nilObj) {
+            return true;
+        }
+
+        // even if identity or somesuch - may be cleared later
+
+        cmFlags = Const.ColorMapPresent;
+        if (InterpreterProxy.isWords(cmOop)) {
+
+            // This is an old-style color map (indexed only, with implicit RGBA conversion)
+
+            cmSize = InterpreterProxy.SIZEOF(cmOop);
+            cmLookupTable = (int[]) ((SqueakObject) cmOop).bits;
+            oldStyle = true;
+        } else {
+            // A new-style color map (fully qualified)
+
+            if (!(InterpreterProxy.isPointers(cmOop) && (InterpreterProxy.SIZEOF(cmOop) >= 3))) {
+                return false;
+            }
+            cmShiftTable = loadColorMapShiftOrMaskFrom(InterpreterProxy.fetchPointerOfObject(0, cmOop));
+            cmMaskTable = loadColorMapShiftOrMaskFrom(InterpreterProxy.fetchPointerOfObject(1, cmOop));
+            oop = InterpreterProxy.fetchPointerOfObject(2, cmOop);
+            if (oop == null || oop == vm.nilObj) {
+                cmSize = 0;
+            } else {
+                if (!InterpreterProxy.isWords(oop)) {
+                    return false;
+                }
+                cmSize = InterpreterProxy.SIZEOF(oop);
+                cmLookupTable = (int[]) ((SqueakObject) oop).bits;
+            }
+            cmFlags = cmFlags | Const.ColorMapNewStyle;
+        }
+
+        if ((cmSize & (cmSize - 1)) != 0) {
+            return false;
+        }
+        cmMask = cmSize - 1;
+        cmBitsPerColor = 0;
+        if (cmSize == 512) {
+            cmBitsPerColor = 3;
+        }
+        if (cmSize == 4096) {
+            cmBitsPerColor = 4;
+        }
+        if (cmSize == 32768) {
+            cmBitsPerColor = 5;
+        }
+        if (cmSize == 0) {
+            cmLookupTable = null;
+            cmMask = 0;
+        } else {
+            cmFlags = cmFlags | Const.ColorMapIndexedPart;
+        }
+        if (oldStyle) {
+
+            // needs implicit conversion
+
+            setupColorMasks();
+        }
+        if (isIdentityMapwith(cmShiftTable, cmMaskTable)) {
+            cmMaskTable = null;
+            cmShiftTable = null;
+        } else {
+            cmFlags = cmFlags | Const.ColorMapFixedPart;
+        }
+
         return true;
     }
 
-    boolean setUpColorMasks() {
-        // Not yet implemented
-        return true;
+    /*	WARNING: For WarpBlt w/ smoothing the source depth is wrong here! */
+    private void setupColorMasks() {
+        int bits = 0;
+        int targetBits = 0;
+
+        if (source.depth <= 8) {
+            return;
+        }
+        if (source.depth == 16) {
+            bits = 5;
+        }
+        if (source.depth == 32) {
+            bits = 8;
+        }
+        if (cmBitsPerColor == 0) {
+
+            /* Convert to destDepth */
+
+            if (dest.depth <= 8) {
+                return;
+            }
+            if (dest.depth == 16) {
+                targetBits = 5;
+            }
+            if (dest.depth == 32) {
+                targetBits = 8;
+            }
+        } else {
+            targetBits = cmBitsPerColor;
+        }
+        setupColorMasksFromto(bits, targetBits);
+    }
+
+    /*	Setup color masks for converting an incoming RGB pixel value from srcBits to targetBits. */
+
+    private void setupColorMasksFromto(int srcBits, int targetBits) {
+        int[] shifts = new int[]{0, 0, 0, 0};
+        int[] masks = new int[]{0, 0, 0, 0};
+        int deltaBits;
+        int mask;
+
+        deltaBits = targetBits - srcBits;
+        if (deltaBits == 0) {
+            return;
+        }
+        if (deltaBits <= 0) {
+
+            /* Mask for extracting a color part of the source */
+
+            mask = (InterpreterProxy.SHL(1, targetBits)) - 1;
+            masks[Const.RedIndex] = (InterpreterProxy.SHL(mask, ((srcBits * 2) - deltaBits)));
+            masks[Const.GreenIndex] = (InterpreterProxy.SHL(mask, (srcBits - deltaBits)));
+            masks[Const.BlueIndex] = (InterpreterProxy.SHL(mask, (0 - deltaBits)));
+            masks[Const.AlphaIndex] = 0;
+        } else {
+
+            /* Mask for extracting a color part of the source */
+
+            mask = (InterpreterProxy.SHL(1, srcBits)) - 1;
+            masks[Const.RedIndex] = (InterpreterProxy.SHL(mask, (srcBits * 2)));
+            masks[Const.GreenIndex] = (InterpreterProxy.SHL(mask, srcBits));
+            masks[Const.BlueIndex] = mask;
+        }
+        shifts[Const.RedIndex] = (deltaBits * 3);
+        shifts[Const.GreenIndex] = (deltaBits * 2);
+        shifts[Const.BlueIndex] = deltaBits;
+        shifts[Const.AlphaIndex] = 0;
+        cmShiftTable = shifts;
+        cmMaskTable = masks;
+        cmFlags = cmFlags | (Const.ColorMapPresent | Const.ColorMapFixedPart);
+    }
+
+    /*	Return true if shiftTable/maskTable define an identity mapping. */
+
+    private boolean isIdentityMapwith(int[] shifts, int[] masks) {
+        if (shifts == null || masks == null) {
+            return true;
+        }
+        if ((shifts[Const.RedIndex] == 0) && (
+                (shifts[Const.GreenIndex] == 0) && (
+                        (shifts[Const.BlueIndex] == 0) && (
+                                (shifts[Const.AlphaIndex] == 0) && (
+                                        (masks[Const.RedIndex] == 16711680) && (
+                                                (masks[Const.GreenIndex] == 65280) && (
+                                                        (masks[Const.BlueIndex] == 255) && (masks[Const.AlphaIndex] == 0xFF000000)))))))) {
+            return true;
+        }
+        return false;
+    }
+
+    private int[] loadColorMapShiftOrMaskFrom(Object mapOop) {
+        if (mapOop == null || mapOop == vm.nilObj) {
+            return null;
+        }
+        if (mapOop instanceof Integer) {
+            InterpreterProxy.primitiveFail();
+            return null;
+        }
+        if (!(InterpreterProxy.isWords(mapOop) && (InterpreterProxy.SIZEOF(mapOop) == 4))) {
+            InterpreterProxy.primitiveFail();
+            return null;
+        }
+        return (int[]) ((SqueakObject) mapOop).bits;
     }
 
     void clipRange() {
@@ -663,8 +884,21 @@ public class BitBlt {
         int srcShift;
         int scrStartBits;
         source.pixPerWord = 32 / source.depth;
+
         sourcePixMask = maskTable[source.depth];
         destPixMask = maskTable[dest.depth];
+        /*if (source.depth == 32) {
+            sourcePixMask = -1;
+        } else {
+            sourcePixMask = (1 << source.depth) - 1;
+        }
+        if (dest.depth == 32) {
+            destPixMask = -1;
+        } else {
+            destPixMask = (1 << dest.depth) - 1;
+        }*/
+
+
         mapperFlags = cmFlags & (~8);
         sourceIndex = (sy * source.pitch) + (sx / source.pixPerWord);
         scrStartBits = source.pixPerWord - (sx & (source.pixPerWord - 1));
@@ -812,66 +1046,11 @@ public class BitBlt {
 
 
     int mergeFnwith(int sourceWord, int destinationWord) {
-        switch (combinationRule) {
-            case 0:
-                return 0;
-            case 1:
-                return sourceWord & destinationWord;
-            case 2:
-                return sourceWord & (~destinationWord);
-            case 3:
-                return sourceWord;
-            case 4:
-                return (~sourceWord) & destinationWord;
-            case 5:
-                return destinationWord;
-            case 6:
-                return sourceWord ^ destinationWord;
-            case 7:
-                return sourceWord | destinationWord;
-            case 8:
-                return (~sourceWord) & (~destinationWord);
-            case 9:
-                return (~sourceWord) ^ destinationWord;
-            case 10:
-                return ~destinationWord;
-            case 11:
-                return sourceWord | (~destinationWord);
-            case 12:
-                return ~sourceWord;
-            case 13:
-                return (~sourceWord) | destinationWord;
-            case 14:
-                return (~sourceWord) | (~destinationWord);
-            case 15:
-                return destinationWord;
-            case 16:
-                return destinationWord;
-            case 17:
-                return destinationWord;
-            case 18:
-                return sourceWord + destinationWord;
-            case 19:
-                return sourceWord - destinationWord;
-            case 20:
-                return sourceWord;
-            case 21:
-                return sourceWord;
-            case 22:
-                return sourceWord;
-            case 23:
-                return sourceWord;
-            case 24:
-                return sourceWord;
-            case 25: {
-                if (sourceWord == 0)
-                    return destinationWord;
-                return sourceWord | (partitionedANDtonBitsnPartitions(~sourceWord, destinationWord, dest.depth, dest.pixPerWord));
-            }
-            case 26:
-                return partitionedANDtonBitsnPartitions(~sourceWord, destinationWord, dest.depth, dest.pixPerWord);
-            default:
-                return sourceWord;
+        IMergeFn mergeFnFunction = _BBOpTable[combinationRule + 1];
+        if (mergeFnFunction != null) {
+            return mergeFnFunction.execute(sourceWord, destinationWord);
+        } else {
+            return sourceWord;
         }
     }
 
@@ -890,5 +1069,427 @@ public class BitBlt {
             mask = mask << nBits;
         }
         return result;
+    }
+
+    int partitionedAddtonBitsnPartitions(int word1, int word2, int nBits, int nParts) {
+        int i;
+        int result;
+        int mask;
+        int sum;
+
+        mask = (1 << nBits) - 1;
+
+        result = 0;
+        for (i = 1; i <= nParts; i += 1) {
+            sum = (word1 & mask) + (word2 & mask);
+            if (sum <= mask) {
+                result = result | sum;
+            } else {
+                result = result | mask;
+            }
+            mask = mask << nBits;
+        }
+        return result;
+    }
+
+    int partitionedSubfromnBitsnPartitions(int word1, int word2, int nBits, int nParts) {
+        int mask;
+        int i;
+        int p1;
+        int p2;
+        int result;
+
+        mask = (1 << nBits) - 1;
+        result = 0;
+        for (i = 1; i <= nParts; i += 1) {
+            p1 = word1 & mask;
+            p2 = word2 & mask;
+            if (p1 < p2) {
+                result = result | (p2 - p1);
+            } else {
+                result = result | (p1 - p2);
+            }
+            mask = mask << nBits;
+        }
+        return result;
+    }
+
+    private int tallyMapAt(int idx) {
+        return cmLookupTable[idx & cmMask];
+    }
+
+    private int tallyMapAtput(int idx, int value) {
+        return cmLookupTable[idx & cmMask] = value;
+    }
+
+    private int rgbMapfromto(int sourcePixel, int nBitsIn, int nBitsOut) {
+        int d;
+        int destPix;
+        int srcPix;
+        int mask;
+
+        if (((d = nBitsOut - nBitsIn)) > 0) {
+
+            /* Expand to more bits by zero-fill */
+
+
+            /* Transfer mask */
+
+            mask = (InterpreterProxy.SHL(1, nBitsIn)) - 1;
+            srcPix = InterpreterProxy.SHL(sourcePixel, d);
+            mask = InterpreterProxy.SHL(mask, d);
+            destPix = srcPix & mask;
+            mask = InterpreterProxy.SHL(mask, nBitsOut);
+            srcPix = InterpreterProxy.SHL(srcPix, d);
+            return (destPix + (srcPix & mask)) + ((InterpreterProxy.SHL(srcPix, d)) & (InterpreterProxy.SHL(mask, nBitsOut)));
+        } else {
+
+            /* Compress to fewer bits by truncation */
+
+            if (d == 0) {
+                if (nBitsIn == 5) {
+
+                    /* Sometimes called with 16 bits, though pixel is 15,
+                    but we must never return more than 15. */
+
+                    return sourcePixel & 0x7FFF;
+                }
+                if (nBitsIn == 8) {
+
+                    /* Sometimes called with 32 bits, though pixel is 24,
+                    but we must never return more than 24. */
+
+                    return sourcePixel & 0x00FFFFFF;
+                }
+                return sourcePixel;
+            }
+            if (sourcePixel == 0) {
+                return sourcePixel;
+            }
+            d = nBitsIn - nBitsOut;
+
+            /* Transfer mask */
+
+            mask = (InterpreterProxy.SHL(1, nBitsOut)) - 1;
+            srcPix = InterpreterProxy.SHR(sourcePixel, d);
+            destPix = srcPix & mask;
+            mask = InterpreterProxy.SHL(mask, nBitsOut);
+            srcPix = InterpreterProxy.SHR(srcPix, d);
+            destPix = (destPix + (srcPix & mask)) + ((InterpreterProxy.SHR(srcPix, d)) & (InterpreterProxy.SHL(mask, nBitsOut)));
+            if (destPix == 0) {
+                return 1;
+            }
+            return destPix;
+        }
+    }
+
+
+    interface IMergeFn {
+        int execute(int sourceWord, int destinationWord);
+    }
+
+    private IMergeFn[] _BBOpTable = new IMergeFn[35];
+
+    /*
+    opTable[0+1] = (int)clearWordwith;
+    opTable[1+1] = (int)bitAndwith;
+    opTable[2+1] = (int)bitAndInvertwith;
+    opTable[3+1] = (int)sourceWordwith;
+    opTable[4+1] = (int)bitInvertAndwith;
+    opTable[5+1] = (int)destinationWordwith;
+    opTable[6+1] = (int)bitXorwith;
+    opTable[7+1] = (int)bitOrwith;
+    opTable[8+1] = (int)bitInvertAndInvertwith;
+    opTable[9+1] = (int)bitInvertXorwith;
+    opTable[10+1] = (int)bitInvertDestinationwith;
+    opTable[11+1] = (int)bitOrInvertwith;
+    opTable[12+1] = (int)bitInvertSourcewith;
+    opTable[13+1] = (int)bitInvertOrwith;
+    opTable[14+1] = (int)bitInvertOrInvertwith;
+    opTable[15+1] = (int)destinationWordwith;
+    opTable[16+1] = (int)destinationWordwith;
+    opTable[17+1] = (int)destinationWordwith;
+    opTable[18+1] = (int)addWordwith;
+    opTable[19+1] = (int)subWordwith;
+    opTable[20+1] = (int)rgbAddwith;
+    opTable[21+1] = (int)rgbSubwith;
+    opTable[22+1] = (int)OLDrgbDiffwith;
+    opTable[23+1] = (int)OLDtallyIntoMapwith;
+    opTable[24+1] = (int)alphaBlendwith;
+    opTable[25+1] = (int)pixPaintwith;
+    opTable[26+1] = (int)pixMaskwith;
+    opTable[27+1] = (int)rgbMaxwith;
+    opTable[28+1] = (int)rgbMinwith;
+    opTable[29+1] = (int)rgbMinInvertwith;
+    opTable[30+1] = (int)alphaBlendConstwith;
+    opTable[31+1] = (int)alphaPaintConstwith;
+    opTable[32+1] = (int)rgbDiffwith;
+    opTable[33+1] = (int)tallyIntoMapwith;
+     */
+
+    /**
+     * Original BBOptable in interp.c
+     * TODO complete all function of BBOpTable
+     */
+    private void initBBOpTable() {
+        // SqueakFunction:: clearWordwith
+        _BBOpTable[0 + 1] = (sourceWord, destinationWord) -> {
+            return 0;
+        };
+
+        // SqueakFunction:: bitAndwith
+        _BBOpTable[1 + 1] = (sourceWord, destinationWord) -> {
+            return sourceWord & destinationWord;
+        };
+
+        // SqueakFunction:: bitAndInvertwith
+        _BBOpTable[2 + 1] = (sourceWord, destinationWord) -> {
+            return sourceWord & (~destinationWord);
+        };
+
+        // SqueakFunction:: sourceWordwith
+        _BBOpTable[3 + 1] = (sourceWord, destinationWord) -> {
+            return sourceWord;
+        };
+
+        // SqueakFunction:: bitInvertAndwith
+        _BBOpTable[4 + 1] = (sourceWord, destinationWord) -> {
+            return (~sourceWord) & destinationWord;
+        };
+
+        // SqueakFunction:: destinationWordwith
+        _BBOpTable[5 + 1] = (sourceWord, destinationWord) -> {
+            return destinationWord;
+        };
+
+        // SqueakFunction:: bitXorwith
+        _BBOpTable[6 + 1] = (sourceWord, destinationWord) -> {
+            return sourceWord ^ destinationWord;
+        };
+
+        // SqueakFunction:: bitOrwith
+        _BBOpTable[7 + 1] = (sourceWord, destinationWord) -> {
+            return sourceWord | destinationWord;
+        };
+
+        // SqueakFunction:: bitInvertAndInvertwith
+        _BBOpTable[8 + 1] = (sourceWord, destinationWord) -> {
+            return (~sourceWord) & (~destinationWord);
+        };
+
+        // SqueakFunction:: bitInvertXorwith
+        _BBOpTable[9 + 1] = (sourceWord, destinationWord) -> {
+            return (~sourceWord) ^ destinationWord;
+        };
+
+        // SqueakFunction:: bitInvertDestinationwith
+        _BBOpTable[10 + 1] = (sourceWord, destinationWord) -> {
+            return ~destinationWord;
+        };
+
+        // SqueakFunction:: bitOrInvertwith
+        _BBOpTable[11 + 1] = (sourceWord, destinationWord) -> {
+            return sourceWord | (~destinationWord);
+        };
+
+        // SqueakFunction:: bitInvertSourcewith
+        _BBOpTable[12 + 1] = (sourceWord, destinationWord) -> {
+            return ~sourceWord;
+        };
+
+        // SqueakFunction:: bitInvertOrwith
+        _BBOpTable[13 + 1] = (sourceWord, destinationWord) -> {
+            return (~sourceWord) | destinationWord;
+        };
+
+        // SqueakFunction:: bitInvertOrInvertwith
+        _BBOpTable[14 + 1] = (sourceWord, destinationWord) -> {
+            return (~sourceWord) | (~destinationWord);
+        };
+
+        // SqueakFunction:: destinationWordwith
+        _BBOpTable[15 + 1] = (sourceWord, destinationWord) -> {
+            return destinationWord;
+        };
+
+        // SqueakFunction:: destinationWordwith
+        _BBOpTable[16 + 1] = (sourceWord, destinationWord) -> {
+            return destinationWord;
+        };
+
+        // SqueakFunction:: destinationWordwith
+        _BBOpTable[17 + 1] = (sourceWord, destinationWord) -> {
+            return destinationWord;
+        };
+
+        // SqueakFunction:: addWordwith
+        _BBOpTable[18 + 1] = (sourceWord, destinationWord) -> {
+            return sourceWord + destinationWord;
+        };
+
+        // SqueakFunction:: subWordwith
+        _BBOpTable[19 + 1] = (sourceWord, destinationWord) -> {
+            return sourceWord - destinationWord;
+        };
+
+        // SqueakFunction:: rgbAddwith
+        _BBOpTable[20 + 1] = (sourceWord, destinationWord) -> {
+            if (dest.depth < 16) {
+                return partitionedAddtonBitsnPartitions(sourceWord, destinationWord, dest.depth, dest.pixPerWord);
+            }
+            if (dest.depth == 16) {
+                return (partitionedAddtonBitsnPartitions(sourceWord, destinationWord, 5, 3)) + ((partitionedAddtonBitsnPartitions(sourceWord >> 16, destinationWord >> 16, 5, 3)) << 16);
+            } else {
+                return partitionedAddtonBitsnPartitions(sourceWord, destinationWord, 8, 3);
+            }
+        };
+
+        // SqueakFunction:: rgbSubwith
+        _BBOpTable[21 + 1] = (sourceWord, destinationWord) -> {
+            if (dest.depth < 16) {
+                return partitionedSubfromnBitsnPartitions(sourceWord, destinationWord, dest.depth, dest.pixPerWord);
+            }
+            if (dest.depth == 16) {
+                return (partitionedSubfromnBitsnPartitions(sourceWord, destinationWord, 5, 3)) + ((partitionedSubfromnBitsnPartitions((sourceWord) >> 16, (destinationWord) >> 16, 5, 3)) << 16);
+            } else {
+                return partitionedSubfromnBitsnPartitions(sourceWord, destinationWord, 8, 3);
+            }
+        };
+
+        // SqueakFunction:: OLDrgbDiffwith
+        _BBOpTable[22 + 1] = (sourceWord, destinationWord) -> {
+            int diff;
+            int pixMask;
+            int destPixSize = dest.depth;
+
+            if (destPixSize < 16) {
+                diff = sourceWord ^ destinationWord;
+                pixMask = (((destPixSize < 0) ? (1 >> -destPixSize) : (1 << destPixSize))) - 1;
+                while (!(diff == 0)) {
+                    if ((diff & pixMask) != 0) {
+                        bitCount += 1;
+                    }
+                    diff = (diff) >> destPixSize;
+                }
+                return destinationWord;
+            }
+            if (destPixSize == 16) {
+                diff = partitionedSubfromnBitsnPartitions(sourceWord, destinationWord, 5, 3);
+                bitCount = ((bitCount + (diff & 31)) + (((diff) >> 5) & 31)) + (((diff) >> 10) & 31);
+                diff = partitionedSubfromnBitsnPartitions((sourceWord) >> 16, (destinationWord) >> 16, 5, 3);
+                bitCount = ((bitCount + (diff & 31)) + (((diff) >> 5) & 31)) + (((diff) >> 10) & 31);
+            } else {
+                diff = partitionedSubfromnBitsnPartitions(sourceWord, destinationWord, 8, 3);
+                bitCount = ((bitCount + (diff & 255)) + (((diff) >> 8) & 255)) + (((diff) >> 16) & 255);
+            }
+            return destinationWord;
+        };
+
+        // SqueakFunction:: OLDtallyIntoMapwith
+        // TODO
+        _BBOpTable[23 + 1] = (sourceWord, destinationWord) -> {
+            int pixMask;
+            int mapIndex;
+            int i;
+            int shiftWord;
+
+            int destDepth = dest.depth;
+            int destPPW = Math.floorDiv(32, destDepth);
+
+            if ((cmFlags & (Const.ColorMapPresent | Const.ColorMapIndexedPart)) != (Const.ColorMapPresent | Const.ColorMapIndexedPart)) {
+                return destinationWord;
+            }
+            if (destDepth < 16) {
+
+                /* loop through all packed pixels. */
+
+                pixMask = maskTable[destDepth] & cmMask;
+                shiftWord = destinationWord;
+                for (i = 1; i <= destPPW; i++) {
+                    mapIndex = shiftWord & pixMask;
+                    tallyMapAtput(mapIndex, tallyMapAt(mapIndex) + 1);
+                    shiftWord = InterpreterProxy.SHR(shiftWord, destDepth);
+                }
+                return destinationWord;
+            }
+            if (destDepth == 16) {
+
+                /* Two pixels  Tally the right half... */
+
+                mapIndex = rgbMapfromto(destinationWord & 65535, 5, cmBitsPerColor);
+                tallyMapAtput(mapIndex, tallyMapAt(mapIndex) + 1);
+                mapIndex = rgbMapfromto(destinationWord >>> 16, 5, cmBitsPerColor);
+                tallyMapAtput(mapIndex, tallyMapAt(mapIndex) + 1);
+            } else {
+
+                /* Just one pixel. */
+
+                mapIndex = rgbMapfromto(destinationWord, 8, cmBitsPerColor);
+                tallyMapAtput(mapIndex, tallyMapAt(mapIndex) + 1);
+            }
+            return destinationWord;
+        };
+
+        // SqueakFunction:: alphaBlendwith
+        // TODO
+        _BBOpTable[24 + 1] = (sourceWord, destinationWord) -> {
+            return sourceWord;
+        };
+
+        // SqueakFunction:: pixPaintwith
+        _BBOpTable[25 + 1] = (sourceWord, destinationWord) -> {
+            if (sourceWord == 0) {
+                return destinationWord;
+            }
+            return sourceWord | (partitionedANDtonBitsnPartitions(~sourceWord, destinationWord, dest.depth, dest.pixPerWord));
+        };
+
+        // SqueakFunction:: pixMaskwith
+        _BBOpTable[26 + 1] = (sourceWord, destinationWord) -> {
+            return partitionedANDtonBitsnPartitions(~sourceWord, destinationWord, dest.depth, dest.pixPerWord);
+        };
+
+        // SqueakFunction:: rgbMaxwith
+        // TODO
+        _BBOpTable[27 + 1] = (sourceWord, destinationWord) -> {
+            return sourceWord;
+        };
+
+        // SqueakFunction:: rgbMinwith
+        // TODO
+        _BBOpTable[28 + 1] = (sourceWord, destinationWord) -> {
+            return sourceWord;
+        };
+
+        // SqueakFunction:: rgbMinInvertwith
+        // TODO
+        _BBOpTable[29 + 1] = (sourceWord, destinationWord) -> {
+            return sourceWord;
+        };
+
+        // SqueakFunction:: alphaBlendConstwith
+        // TODO
+        _BBOpTable[30 + 1] = (sourceWord, destinationWord) -> {
+            return sourceWord;
+        };
+
+        // SqueakFunction:: alphaPaintConstwith
+        // TODO
+        _BBOpTable[31 + 1] = (sourceWord, destinationWord) -> {
+            return sourceWord;
+        };
+
+        // SqueakFunction:: rgbDiffwith
+        // TODO
+        _BBOpTable[32 + 1] = (sourceWord, destinationWord) -> {
+            return sourceWord;
+        };
+
+        // SqueakFunction:: tallyIntoMapwith
+        // TODO
+        _BBOpTable[33 + 1] = (sourceWord, destinationWord) -> {
+            return sourceWord;
+        };
+
     }
 }
