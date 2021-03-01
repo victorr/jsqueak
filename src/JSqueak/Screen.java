@@ -105,7 +105,7 @@ public class Screen {
             @Override
             public void componentResized(ComponentEvent e) {
                 Dimension currentDimension = fDisplay.getSize();
-                SqueakLogger.log_D("fDisplay resized width: " + currentDimension.width + "height: " + currentDimension.height);
+                SqueakLogger.log_D("fDisplay resized width: " + currentDimension.width + ", height: " + currentDimension.height);
                 fExtent.setSize(currentDimension.width, currentDimension.height);
             }
 
@@ -162,12 +162,26 @@ public class Screen {
             // Black&White color model
             ColorModel colorModel = ScreenUtils.getBlackWhiteModel();
             image = new BufferedImage(colorModel, raster, colorModel.isAlphaPremultiplied(), null);
-        } else {
-            // 8-bit color model
+        } else if (fDepth == 8) {
+            // Display depth 8
             ColorModel colorModel = ScreenUtils.get256ColorModel();
             image = new BufferedImage(colorModel, raster, false, null);
+        } else if (fDepth == 32) {
+            // Display depth 32
+            // Code snippet from PotatoVM
+            DirectColorModel colorModel = (DirectColorModel) ColorModel.getRGBdefault();
+
+            // SinglePixelPackedSampleModel is required by the color model
+            // also we need to specify the bitmasks for ARGB components again
+            SampleModel sm32 = new SinglePixelPackedSampleModel(buf.getDataType(), fExtent.width, fExtent.height,
+                    new int[]{colorModel.getRedMask(), colorModel.getGreenMask(), colorModel.getBlueMask(), colorModel.getAlphaMask()});
+            WritableRaster raster32 = Raster.createWritableRaster(sm32, buf, new Point(0, 0));
+
+            image = new BufferedImage(colorModel, raster32, true, null);
+        } else {
+            throw new RuntimeException("Display Depth " + fDepth + " is not support");
         }
-        // TODO adding support for more color depth
+        // TODO adding support for display depth 2/4/16
         return new ImageIcon(image);
     }
 

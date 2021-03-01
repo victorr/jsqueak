@@ -72,6 +72,7 @@ public class Starter {
         SqueakImage img = args.length > 0 ? locateSavedImage(args[1])
                 : locateStartableImage();
         SqueakVM vm = new SqueakVM(img);
+        SqueakVM.INSTANCE = vm;
         vm.run();
     }
 
